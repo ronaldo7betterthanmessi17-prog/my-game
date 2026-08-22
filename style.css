@@ -139,6 +139,10 @@ input:focus { border-color: var(--accent); }
   font-weight: 700;
   z-index: 5;
 }
+.hud-buttons {
+  display: flex;
+  gap: 8px;
+}
 .gold-indicator {
   position: fixed;
   top: 56px;
@@ -209,6 +213,10 @@ input:focus { border-color: var(--accent); }
   opacity: 0.75;
   pointer-events: none;
   z-index: 4;
+  transition: opacity 0.8s ease;
+}
+.web-overlay.fade-out {
+  opacity: 0;
 }
 
 .score-popup {

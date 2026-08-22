@@ -123,7 +123,7 @@ const SOUND_VOLUME = {
   badend: 1,
   diamond: 0.5,
   explosion: 1,
-  firework: 1,
+  firework: 1.6, // 1.0 초과 = Web Audio GainNode로 증폭
   goodend: 1,
   thunder: 0.5,
 };
@@ -131,9 +131,23 @@ function playSound(key) {
   if (state.isMuted) return;
   const src = SOUND_FILES[key];
   if (!src) return;
-  const audio = new Audio(src);
-  audio.volume = SOUND_VOLUME[key] ?? 1;
-  audio.play().catch(() => {});
+  const volume = SOUND_VOLUME[key] ?? 1;
+
+  if (volume > 1) {
+    // 1.0을 넘는 볼륨은 HTML Audio가 지원하지 않으므로 Web Audio GainNode로 증폭
+    const ctx = getAudioCtx();
+    const audio = new Audio(src);
+    audio.crossOrigin = "anonymous";
+    const source = ctx.createMediaElementSource(audio);
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = volume;
+    source.connect(gainNode).connect(ctx.destination);
+    audio.play().catch(() => {});
+  } else {
+    const audio = new Audio(src);
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  }
 }
 
 /* =========================================================
@@ -157,7 +171,7 @@ $("btn-start").addEventListener("click", () => {
 const HOWTO_TEXT = `[목표 종류]
 두더지: +1점
 다이아몬드 블록: +3점
-에메랄드 블록: 80% 확률 +5점 / 20% 확률 -5점
+에메랄드 블록: 80% 확률 +5점 / 20% 확률 -3점
 크리퍼: -3점 (클릭 시 화면 흔들림)
 좀벌레: -2점 (클릭 시 거미줄로 잠깐 시야 방해)
 금 블록: 다음에 받는 점수가 2배! (다른 목표를 클릭하면 효과 종료)
@@ -394,7 +408,7 @@ function handleTargetClick(typeKey, el, clientX, clientY) {
         delta = 5;
         playSound("firework");
       } else {
-        delta = -5;
+        delta = -3;
         playSound("thunder");
       }
       break;
@@ -459,7 +473,11 @@ function showWebOverlay() {
   const web = document.createElement("div");
   web.className = "web-overlay";
   document.body.appendChild(web);
-  setTimeout(() => web.remove(), 1500);
+  // 일정 시간 유지 후 서서히 사라짐 (fade-out)
+  setTimeout(() => {
+    web.classList.add("fade-out");
+    setTimeout(() => web.remove(), 800);
+  }, 900);
 }
 
 /* ---------- 허공 클릭 (빗나감) ---------- */
@@ -485,6 +503,12 @@ function updateHUD() {
   $("hud-time").textContent = `${m}:${s.toString().padStart(2, "0")}`;
   $("hud-score").textContent = `점수 ${state.score}`;
 }
+
+/* ---------- 음소거 ---------- */
+$("btn-mute").addEventListener("click", () => {
+  state.isMuted = !state.isMuted;
+  $("btn-mute").textContent = state.isMuted ? "🔇" : "🔊";
+});
 
 /* ---------- 일시정지 ---------- */
 $("btn-pause").addEventListener("click", () => {
