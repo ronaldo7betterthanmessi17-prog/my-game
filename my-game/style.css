@@ -1,0 +1,48 @@
+body {
+  text-align: center;
+  background: #222;
+  color: white;
+  font-family: sans-serif;
+}
+
+#gameArea {
+  width: 700px;
+  height: 500px;
+  margin: 20px auto;
+  background: #444;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 🎯 타겟 */
+.target {
+  width: 60px;
+  height: 60px;
+  position: absolute;
+  cursor: pointer;
+
+  background-size: contain;  /* 💥 핵심 */
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* 🎮 난이도 버튼 */
+#difficultyMenu button {
+  margin: 5px;
+  padding: 10px 15px;
+  border: none;
+  cursor: pointer;
+  background: #666;
+  color: white;
+}
+
+/* 선택된 난이도 */
+#difficultyMenu button.active {
+  background: red;
+  font-weight: bold;
+}
+
+/* 카운트다운 */
+#countdown {
+  font-size: 50px;
+}

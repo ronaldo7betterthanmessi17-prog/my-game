@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>두더지 잡기 게임</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>🐹 두더지 잡기 게임</h1>
+
+<div id="menu">
+
+  <!-- 🎮 난이도 선택 -->
+  <div id="difficultyMenu">
+    <button onclick="setDifficulty('easy')" id="easyBtn">하</button>
+    <button onclick="setDifficulty('normal')" id="normalBtn">중</button>
+    <button onclick="setDifficulty('hard')" id="hardBtn">상</button>
+    <button onclick="setDifficulty('impossible')" id="impossibleBtn">불가능</button>
+  </div>
+
+  <br>
+
+  <button onclick="startCountdown()">게임 시작</button>
+  <button onclick="showInfo()">설명</button>
+
+</div>
+
+<h2 id="countdown"></h2>
+
+<div id="gameArea"></div>
+
+<p id="score">점수: 0</p>
+<p id="timer">시간: 120</p>
+
+<script src="script.js"></script>
+</body>
+</html>
