@@ -118,11 +118,21 @@ const SOUND_FILES = {
   goodend: "sounds/goodend.mp3",
   thunder: "sounds/thunder.mp3",
 };
+const SOUND_VOLUME = {
+  bad: 1,
+  badend: 1,
+  diamond: 0.5,
+  explosion: 1,
+  firework: 1,
+  goodend: 1,
+  thunder: 0.5,
+};
 function playSound(key) {
   if (state.isMuted) return;
   const src = SOUND_FILES[key];
   if (!src) return;
   const audio = new Audio(src);
+  audio.volume = SOUND_VOLUME[key] ?? 1;
   audio.play().catch(() => {});
 }
 
