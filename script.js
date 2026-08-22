@@ -27,20 +27,20 @@ const state = {
 
 /* ---------- 난이도별 세부 수치 (PC 기준, 임시값 - 추후 조정) ---------- */
 const DIFFICULTY_CONFIG = {
-  easy:       { spawnInterval: 1200, maxOnScreen: 2, lifeTime: 1400 },
-  normal:     { spawnInterval: 900,  maxOnScreen: 3, lifeTime: 1000 },
-  hard:       { spawnInterval: 600,  maxOnScreen: 4, lifeTime: 700 },
-  impossible: { spawnInterval: 400,  maxOnScreen: 5, lifeTime: 500 },
+  easy:       { spawnInterval: 1200, maxOnScreen: 3, lifeTime: 1400 },
+  normal:     { spawnInterval: 900,  maxOnScreen: 5, lifeTime: 1000 },
+  hard:       { spawnInterval: 750,  maxOnScreen: 7, lifeTime: 850 },
+  impossible: { spawnInterval: 550,  maxOnScreen: 9, lifeTime: 650 },
 };
 
 /* ---------- 목표 종류별 점수/확률/스폰가중치 ---------- */
 const TARGET_TYPES = [
-  { key: "mole",       weight: 40, className: "target-mole",       emoji: "🐹" },
-  { key: "diamond",    weight: 15, className: "target-diamond",    emoji: "◆" },
-  { key: "emerald",    weight: 15, className: "target-emerald",    emoji: "■" },
-  { key: "creeper",    weight: 15, className: "target-creeper",    emoji: "▲" },
-  { key: "silverfish", weight: 10, className: "target-silverfish", emoji: "●" },
-  { key: "gold",       weight: 5,  className: "target-gold",       emoji: "★" },
+  { key: "mole",       weight: 40, className: "target-mole",       image: "images/mole.png" },
+  { key: "diamond",    weight: 15, className: "target-diamond",    image: "images/diamond.png" },
+  { key: "emerald",    weight: 15, className: "target-emerald",    image: "images/emerald.png" },
+  { key: "creeper",    weight: 15, className: "target-creeper",    image: "images/creeper.png" },
+  { key: "silverfish", weight: 10, className: "target-silverfish", image: "images/silverfish.png" },
+  { key: "gold",       weight: 5,  className: "target-gold",       image: "images/gold.png" },
 ];
 const TOTAL_WEIGHT = TARGET_TYPES.reduce((s, t) => s + t.weight, 0);
 
@@ -344,7 +344,7 @@ function spawnTarget(cfg) {
   el.className = `target ${type.className}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
-  el.textContent = type.emoji;
+  el.innerHTML = `<img src="${type.image}" alt="${type.key}" draggable="false" />`;
   el.dataset.type = type.key;
 
   const removeTimer = setTimeout(() => removeTarget(el), cfg.lifeTime);
