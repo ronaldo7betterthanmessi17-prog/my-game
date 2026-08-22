@@ -290,10 +290,13 @@ function startCountdown() {
 let activeTargets = [];
 
 function startGame() {
+  clearInterval(state.timerId);
+  clearInterval(state.spawnTimerId);
   state.score = 0;
   state.timeLeft = 60;
   state.goldActive = false;
   state.isPaused = false;
+  state.isGameOver = false;
   activeTargets = [];
   $("game-field").innerHTML = "";
   updateHUD();
@@ -494,8 +497,12 @@ $("btn-resume").addEventListener("click", () => {
 });
 
 function endGame() {
+  if (state.isGameOver) return; // 중복 호출 방지 (수학 문제 반복 생성 버그 수정)
+  state.isGameOver = true;
   clearInterval(state.timerId);
   clearInterval(state.spawnTimerId);
+  state.timerId = null;
+  state.spawnTimerId = null;
   activeTargets.forEach(removeTarget);
   deactivateGold();
   startSecondMath();
