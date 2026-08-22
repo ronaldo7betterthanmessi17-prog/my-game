@@ -183,14 +183,22 @@ input:focus { border-color: var(--accent); }
   from { transform: scale(0.5); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
-.target img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.target img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  border: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
-.target-mole { background: #6b4226; }
-.target-emerald { background: #17a673; }
-.target-creeper { background: #3b8f3b; }
-.target-diamond { background: #3fb6d6; }
-.target-silverfish { background: #5a4a6a; }
-.target-gold { background: #d4af37; }
+.target-mole { background: transparent; }
+.target-emerald { background: transparent; }
+.target-creeper { background: transparent; }
+.target-diamond { background: transparent; }
+.target-silverfish { background: transparent; }
+.target-gold { background: transparent; }
 
 .web-overlay {
   position: fixed;
