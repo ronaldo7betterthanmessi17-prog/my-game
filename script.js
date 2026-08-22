@@ -27,10 +27,10 @@ const state = {
 
 /* ---------- 난이도별 세부 수치 (PC 기준, 임시값 - 추후 조정) ---------- */
 const DIFFICULTY_CONFIG = {
-  easy:       { spawnInterval: 1200, maxOnScreen: 3, lifeTime: 1400 },
-  normal:     { spawnInterval: 900,  maxOnScreen: 5, lifeTime: 1000 },
-  hard:       { spawnInterval: 750,  maxOnScreen: 7, lifeTime: 850 },
-  impossible: { spawnInterval: 550,  maxOnScreen: 9, lifeTime: 650 },
+  easy:       { spawnInterval: 1400, maxOnScreen: 5,  lifeTime: 1500 },
+  normal:     { spawnInterval: 1100, maxOnScreen: 8,  lifeTime: 1200 },
+  hard:       { spawnInterval: 950,  maxOnScreen: 11, lifeTime: 1000 },
+  impossible: { spawnInterval: 800,  maxOnScreen: 14, lifeTime: 850 },
 };
 
 /* ---------- 목표 종류별 점수/확률/스폰가중치 ---------- */
@@ -331,12 +331,27 @@ function startGame() {
 }
 
 function scheduleSpawn(cfg) {
+  // 매 웨이브마다 부족한 만큼을 한꺼번에(동시에) 채워 넣음
+  spawnWave(cfg);
   state.spawnTimerId = setInterval(() => {
     if (state.isPaused) return;
-    if (activeTargets.length < cfg.maxOnScreen) {
-      spawnTarget(cfg);
-    }
+    spawnWave(cfg);
   }, cfg.spawnInterval);
+}
+
+function spawnWave(cfg) {
+  const needed = cfg.maxOnScreen - activeTargets.length;
+  for (let i = 0; i < needed; i++) {
+    spawnTarget(cfg);
+  }
+}
+
+function isOverlapping(x, y, size, minGap) {
+  return activeTargets.some((el) => {
+    const ex = parseFloat(el.style.left);
+    const ey = parseFloat(el.style.top);
+    return Math.abs(x - ex) < size + minGap && Math.abs(y - ey) < size + minGap;
+  });
 }
 
 function pickTargetType() {
@@ -354,8 +369,14 @@ function spawnTarget(cfg) {
   const fw = field.clientWidth;
   const fh = field.clientHeight;
   const size = 64;
-  const x = Math.random() * (fw - size - 20) + 10;
-  const y = Math.random() * (fh - size - 100) + 80; // HUD 영역 피하기
+  const minGap = 12; // 표적 간 최소 간격
+
+  let x, y, tries = 0;
+  do {
+    x = Math.random() * (fw - size - 20) + 10;
+    y = Math.random() * (fh - size - 100) + 80; // HUD 영역 피하기
+    tries++;
+  } while (tries < 8 && isOverlapping(x, y, size, minGap));
 
   const el = document.createElement("div");
   el.className = `target ${type.className}`;
