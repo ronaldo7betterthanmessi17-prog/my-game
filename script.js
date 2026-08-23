@@ -5,6 +5,8 @@
 ========================================================= */
 
 /* ---------- Firebase 초기화 (온라인 랭킹) ---------- */
+/* 이 블록이 실패해도(광고차단/네트워크 문제 등) 게임 자체는 계속 동작하도록
+   반드시 try/catch로 감싸고, 실패 시 db를 null로 두어 이후 코드에서 방어적으로 처리함 */
 const firebaseConfig = {
   apiKey: "AIzaSyCBL6ZusKbNFXyK0RL-iukpl6z1F2dU0MQ",
   authDomain: "mymolegame.firebaseapp.com",
@@ -14,11 +16,23 @@ const firebaseConfig = {
   appId: "1:1001599850545:web:50c6d04e40b359985e1d10",
   measurementId: "G-Z6NHPZ8630",
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+
+let db = null;
+try {
+  if (typeof firebase !== "undefined") {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  } else {
+    console.warn("Firebase SDK를 불러오지 못했습니다. 랭킹 기능이 비활성화됩니다.");
+  }
+} catch (err) {
+  console.warn("Firebase 초기화 실패. 랭킹 기능이 비활성화됩니다.", err);
+  db = null;
+}
 
 // 난이도별 컬렉션에 점수 저장 (닉네임, 점수, 1차/2차 수학 풀이 시간 포함)
 async function saveScoreToFirebase(difficulty, nickname, score, firstMathTime, secondMathTime) {
+  if (!db) return; // Firebase 사용 불가 시 조용히 건너뜀 (게임 진행에는 영향 없음)
   try {
     await db.collection(`scores_${difficulty}`).add({
       nickname,
@@ -44,6 +58,13 @@ const rankingState = {
 
 async function loadRankingPage(difficulty, pageIndex) {
   const body = $("ranking-body");
+
+  if (!db) {
+    body.innerHTML = `<p class="muted">랭킹 기능을 사용할 수 없습니다. (네트워크 또는 광고 차단 확장 프로그램을 확인해주세요)</p>`;
+    updateRankingPagerButtons();
+    return;
+  }
+
   body.innerHTML = `<p class="muted">불러오는 중...</p>`;
   rankingState.difficulty = difficulty;
   rankingState.pageIndex = pageIndex;
