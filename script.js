@@ -238,7 +238,9 @@ function startSecondMath() {
 function showMathScreen() {
   const q = genMathQuestion();
   state.mathAnswer = q.answer;
-  state.mathSubmitted = false; // 중복 제출 방지 플래그 초기화
+  state.mathSubmitLocked = false; // 짧은 시간 내 중복 제출 방지용
+  state.mathWrongPenalty = 0; // 이번 문제에서 누적된 오답 페널티(초)
+  state.mathStartTs = performance.now(); // 최초 시도 시작 시각(오답 재시도해도 유지)
   $("math-question").textContent = q.text;
   $("math-answer").value = "";
   $("math-feedback").textContent = "";
@@ -246,33 +248,40 @@ function showMathScreen() {
   $("math-label").textContent =
     state.mathPhase === "first" ? "게임 시작 전 문제를 풀어주세요" : "게임이 끝났어요! 다시 풀어볼까요?";
   showScreen("math");
-  state.mathStartTs = performance.now();
   setTimeout(() => $("math-answer").focus(), 100);
 }
 
 function submitMath() {
-  if (state.mathSubmitted) return; // 중복 제출(버튼+Enter 동시입력 등) 방지
-  state.mathSubmitted = true;
+  if (state.mathSubmitLocked) return; // 버튼+Enter 동시입력 등으로 인한 중복 제출 방지
+  state.mathSubmitLocked = true;
+  setTimeout(() => { state.mathSubmitLocked = false; }, 300);
 
   const userVal = parseInt($("math-answer").value, 10);
-  let elapsedSec = (performance.now() - state.mathStartTs) / 1000;
   const isCorrect = userVal === state.mathAnswer;
 
   if (isCorrect) {
+    const elapsedSec = (performance.now() - state.mathStartTs) / 1000 + state.mathWrongPenalty;
     $("math-feedback").textContent = `정답! (${elapsedSec.toFixed(2)}초)`;
     $("math-feedback").className = "feedback";
-  } else {
-    elapsedSec += 0.5; // 오답 페널티 +0.5초
-    $("math-feedback").textContent = `오답 (정답: ${state.mathAnswer}) - ${elapsedSec.toFixed(2)}초 (오답 페널티 +0.5초 포함)`;
-    $("math-feedback").className = "feedback wrong";
-  }
 
-  if (state.mathPhase === "first") {
-    state.firstMathTime = elapsedSec;
-    setTimeout(() => startCountdown(), 900);
+    if (state.mathPhase === "first") {
+      state.firstMathTime = elapsedSec;
+      setTimeout(() => startCountdown(), 700);
+    } else {
+      state.secondMathTime = elapsedSec;
+      setTimeout(() => showResult(), 700);
+    }
   } else {
-    state.secondMathTime = elapsedSec;
-    setTimeout(() => showResult(), 900);
+    // 오답: 진행하지 않고 새 문제로 재시도, 페널티 +0.5초 누적
+    state.mathWrongPenalty += 0.5;
+    $("math-feedback").textContent = `오답! 다시 풀어주세요 (오답 페널티 +0.5초 누적: ${state.mathWrongPenalty.toFixed(1)}초)`;
+    $("math-feedback").className = "feedback wrong";
+
+    const q = genMathQuestion();
+    state.mathAnswer = q.answer;
+    $("math-question").textContent = q.text;
+    $("math-answer").value = "";
+    $("math-answer").focus();
   }
 }
 $("btn-math-submit").addEventListener("click", submitMath);
