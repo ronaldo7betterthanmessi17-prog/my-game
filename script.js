@@ -3,7 +3,7 @@
    1순위: 이미지 없이 도형/색으로 처음~끝까지 플레이 가능한 버전
    (이미지 경로는 미리 잡아두고, 파일이 없으면 색상 블록으로 대체됨)
 ========================================================= */
-
+ 
 /* ---------- Firebase 초기화 (온라인 랭킹) ---------- */
 /* 이 블록이 실패해도(광고차단/네트워크 문제 등) 게임 자체는 계속 동작하도록
    반드시 try/catch로 감싸고, 실패 시 db를 null로 두어 이후 코드에서 방어적으로 처리함 */
@@ -16,7 +16,7 @@ const firebaseConfig = {
   appId: "1:1001599850545:web:50c6d04e40b359985e1d10",
   measurementId: "G-Z6NHPZ8630",
 };
-
+ 
 let db = null;
 try {
   if (typeof firebase !== "undefined") {
@@ -29,7 +29,7 @@ try {
   console.warn("Firebase 초기화 실패. 랭킹 기능이 비활성화됩니다.", err);
   db = null;
 }
-
+ 
 /* ---------- DOM 참조 (다른 모든 코드보다 먼저 정의되어야 함) ---------- */
 const $ = (id) => document.getElementById(id);
 const screens = {
@@ -40,12 +40,12 @@ const screens = {
   game: $("screen-game"),
   result: $("screen-result"),
 };
-
+ 
 function showScreen(name) {
   Object.values(screens).forEach((el) => el.classList.remove("active"));
   screens[name].classList.add("active");
 }
-
+ 
 // 난이도별 컬렉션에 점수 저장 (닉네임, 점수, 1차/2차 수학 풀이 시간 포함)
 async function saveScoreToFirebase(difficulty, nickname, score, firstMathTime, secondMathTime) {
   if (!db) return; // Firebase 사용 불가 시 조용히 건너뜀 (게임 진행에는 영향 없음)
@@ -61,7 +61,7 @@ async function saveScoreToFirebase(difficulty, nickname, score, firstMathTime, s
     console.error("랭킹 저장 실패:", err);
   }
 }
-
+ 
 // 랭킹 페이지네이션 상태
 const rankingState = {
   difficulty: "easy",
@@ -71,27 +71,27 @@ const rankingState = {
   lastDocOfPage: null, // 현재 페이지의 마지막 문서(다음 페이지 커서로 사용)
   hasNextPage: false,
 };
-
+ 
 async function loadRankingPage(difficulty, pageIndex) {
   const body = $("ranking-body");
-
+ 
   if (!db) {
     body.innerHTML = `<p class="muted">랭킹 기능을 사용할 수 없습니다. (네트워크 또는 광고 차단 확장 프로그램을 확인해주세요)</p>`;
     updateRankingPagerButtons();
     return;
   }
-
+ 
   body.innerHTML = `<p class="muted">불러오는 중...</p>`;
   rankingState.difficulty = difficulty;
   rankingState.pageIndex = pageIndex;
-
+ 
   try {
     let query = db.collection(`scores_${difficulty}`).orderBy("score", "desc").limit(rankingState.pageSize);
     const cursor = rankingState.cursors[pageIndex];
     if (cursor) query = query.startAfter(cursor);
-
+ 
     const snapshot = await query.get();
-
+ 
     if (snapshot.empty && pageIndex === 0) {
       body.innerHTML = `<p class="muted">아직 기록이 없습니다.</p>`;
       $("ranking-page-label").textContent = `1페이지`;
@@ -99,7 +99,7 @@ async function loadRankingPage(difficulty, pageIndex) {
       updateRankingPagerButtons();
       return;
     }
-
+ 
     let html = `<ol class="ranking-list" start="${pageIndex * rankingState.pageSize + 1}">`;
     snapshot.forEach((doc, i) => {
       const d = doc.data();
@@ -112,14 +112,14 @@ async function loadRankingPage(difficulty, pageIndex) {
     });
     html += `</ol>`;
     body.innerHTML = html;
-
+ 
     // 다음 페이지 존재 여부 확인 (페이지 크기만큼 꽉 찼으면 다음 페이지가 있을 수 있음)
     rankingState.lastDocOfPage = snapshot.docs[snapshot.docs.length - 1] || null;
     rankingState.hasNextPage = snapshot.docs.length === rankingState.pageSize;
     if (rankingState.hasNextPage && !rankingState.cursors[pageIndex + 1]) {
       rankingState.cursors[pageIndex + 1] = rankingState.lastDocOfPage;
     }
-
+ 
     $("ranking-page-label").textContent = `${pageIndex + 1}페이지`;
     updateRankingPagerButtons();
   } catch (err) {
@@ -127,12 +127,12 @@ async function loadRankingPage(difficulty, pageIndex) {
     body.innerHTML = `<p class="muted">랭킹을 불러오지 못했습니다.</p>`;
   }
 }
-
+ 
 function updateRankingPagerButtons() {
   $("btn-rank-prev").disabled = rankingState.pageIndex === 0;
   $("btn-rank-next").disabled = !rankingState.hasNextPage;
 }
-
+ 
 $("btn-rank-prev").addEventListener("click", () => {
   if (rankingState.pageIndex > 0) {
     loadRankingPage(rankingState.difficulty, rankingState.pageIndex - 1);
@@ -143,13 +143,13 @@ $("btn-rank-next").addEventListener("click", () => {
     loadRankingPage(rankingState.difficulty, rankingState.pageIndex + 1);
   }
 });
-
+ 
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
 }
-
+ 
 /* ---------- 전역 상태 ---------- */
 const state = {
   nickname: "",
@@ -170,7 +170,7 @@ const state = {
   mathPhase: "first",   // "first" | "second"
   isMobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
 };
-
+ 
 /* ---------- 난이도별 세부 수치 (PC 기준, 임시값 - 추후 조정) ---------- */
 const DIFFICULTY_CONFIG = {
   easy:       { spawnInterval: 1400, maxOnScreen: 5,  lifeTime: 1500 },
@@ -178,7 +178,7 @@ const DIFFICULTY_CONFIG = {
   hard:       { spawnInterval: 950,  maxOnScreen: 11, lifeTime: 1000 },
   impossible: { spawnInterval: 800,  maxOnScreen: 14, lifeTime: 850 },
 };
-
+ 
 /* ---------- 목표 종류별 점수/확률/스폰가중치 ---------- */
 const TARGET_TYPES = [
   { key: "mole",       weight: 40, className: "target-mole",       image: "images/mole.png" },
@@ -189,7 +189,7 @@ const TARGET_TYPES = [
   { key: "gold",       weight: 5,  className: "target-gold",       image: "images/gold.png" },
 ];
 const TOTAL_WEIGHT = TARGET_TYPES.reduce((s, t) => s + t.weight, 0);
-
+ 
 /* ---------- 등급 구간 (PC 기준, 모바일은 +20점) ---------- */
 const GRADES_NORMAL = [
   { name: "벤치급", min: 0 },
@@ -212,10 +212,10 @@ const GRADES_IMPOSSIBLE = [
 // 등급 이미지 파일명 매핑 (end_images/n1.png ~ n8.png, i1.png ~ i6.png)
 const GRADE_IMAGE_MAP_NORMAL = ["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8"];
 const GRADE_IMAGE_MAP_IMPOSSIBLE = ["i1", "i2", "i3", "i4", "i5", "i6"];
-
+ 
 const GOOD_END_CUT = { easy: 65, normal: 65, hard: 65, impossible: 45 };
 const MOBILE_BONUS = 20;
-
+ 
 /* =========================================================
    사운드 (Web Audio API로 카운트다운 비프음 생성, 나머지는 파일 재생)
 ========================================================= */
@@ -238,7 +238,7 @@ function playBeep(freq = 440, duration = 0.15) {
   osc.start();
   osc.stop(ctx.currentTime + duration);
 }
-
+ 
 const SOUND_FILES = {
   bad: "sounds/bad.mp3",
   badend: "sounds/badend.mp3",
@@ -262,7 +262,7 @@ function playSound(key) {
   const src = SOUND_FILES[key];
   if (!src) return;
   const volume = SOUND_VOLUME[key] ?? 1;
-
+ 
   if (volume > 1) {
     // 1.0을 넘는 볼륨은 HTML Audio가 지원하지 않으므로 Web Audio GainNode로 증폭
     const ctx = getAudioCtx();
@@ -279,7 +279,7 @@ function playSound(key) {
     audio.play().catch(() => {});
   }
 }
-
+ 
 /* =========================================================
    1. 메인 화면
 ========================================================= */
@@ -291,13 +291,13 @@ $("logo").addEventListener("click", () => {
     $("ranking-tab-impossible").classList.remove("hidden"); // 랭킹에서도 해제 후에만 노출
   }
 });
-
+ 
 $("btn-start").addEventListener("click", () => {
   const name = $("nickname-input").value.trim();
   state.nickname = name || "익명";
   showScreen("difficulty");
 });
-
+ 
 /* ---------- 게임 설명 모달 ---------- */
 const HOWTO_TEXT = `[목표 종류]
 두더지: +1점
@@ -307,23 +307,23 @@ const HOWTO_TEXT = `[목표 종류]
 좀벌레: -2점 (클릭 시 거미줄로 잠깐 시야 방해)
 금 블록: 다음에 받는 점수가 2배! (다른 목표를 클릭하면 효과 종료)
 허공 클릭(빗나감): -1점
-
+ 
 [진행 순서]
 수학 문제 → 카운트다운 → 60초 본게임 → 수학 문제 → 결과 확인
-
+ 
 [난이도]
 easy / normal / hard 중 선택 가능
 숨겨진 난이도도... 있다던데?`;
-
+ 
 $("howto-body").textContent = HOWTO_TEXT;
 const hintEl = document.createElement("p");
 hintEl.className = "howto-hint";
 hintEl.textContent = "ronaldo7";
 $("howto-body").appendChild(hintEl);
-
+ 
 $("btn-howto").addEventListener("click", () => $("howto-modal").classList.remove("hidden"));
 $("btn-howto-close").addEventListener("click", () => $("howto-modal").classList.add("hidden"));
-
+ 
 /* ---------- 랭킹 모달 (Firebase 연동, 페이지네이션 포함) ---------- */
 $("btn-ranking").addEventListener("click", () => {
   $("ranking-modal").classList.remove("hidden");
@@ -340,7 +340,7 @@ document.querySelectorAll("#ranking-tabs .tab-btn").forEach((btn) => {
     loadRankingPage(btn.dataset.diff, 0);
   });
 });
-
+ 
 /* =========================================================
    2. 난이도 선택
 ========================================================= */
@@ -351,7 +351,7 @@ document.querySelectorAll(".diff-btn").forEach((btn) => {
   });
 });
 $("btn-back-main").addEventListener("click", () => showScreen("main"));
-
+ 
 /* =========================================================
    3. 수학 문제 (1차 / 2차 공용)
 ========================================================= */
@@ -363,7 +363,7 @@ function genMathQuestion() {
   const answer = op === "+" ? a + b : a - b;
   return { text: `${a} ${op} ${b}`, answer };
 }
-
+ 
 function startFirstMath() {
   state.mathPhase = "first";
   showMathScreen();
@@ -387,20 +387,20 @@ function showMathScreen() {
   showScreen("math");
   setTimeout(() => $("math-answer").focus(), 100);
 }
-
+ 
 function submitMath() {
   if (state.mathSubmitLocked) return; // 버튼+Enter 동시입력 등으로 인한 중복 제출 방지
   state.mathSubmitLocked = true;
   setTimeout(() => { state.mathSubmitLocked = false; }, 300);
-
+ 
   const userVal = parseInt($("math-answer").value, 10);
   const isCorrect = userVal === state.mathAnswer;
-
+ 
   if (isCorrect) {
     const elapsedSec = (performance.now() - state.mathStartTs) / 1000 + state.mathWrongPenalty;
     $("math-feedback").textContent = `정답! (${elapsedSec.toFixed(2)}초)`;
     $("math-feedback").className = "feedback";
-
+ 
     if (state.mathPhase === "first") {
       state.firstMathTime = elapsedSec;
       setTimeout(() => startCountdown(), 700);
@@ -413,7 +413,7 @@ function submitMath() {
     state.mathWrongPenalty += 0.5;
     $("math-feedback").textContent = `오답! 다시 풀어주세요 (오답 페널티 +0.5초 누적: ${state.mathWrongPenalty.toFixed(1)}초)`;
     $("math-feedback").className = "feedback wrong";
-
+ 
     const q = genMathQuestion();
     state.mathAnswer = q.answer;
     $("math-question").textContent = q.text;
@@ -425,8 +425,8 @@ $("btn-math-submit").addEventListener("click", submitMath);
 $("math-answer").addEventListener("keydown", (e) => {
   if (e.key === "Enter") submitMath();
 });
-
-
+ 
+ 
 /* =========================================================
    4. 카운트다운
 ========================================================= */
@@ -435,7 +435,7 @@ function startCountdown() {
   const seq = ["1", "2", "3", "START!"];
   let i = 0;
   const el = $("countdown-text");
-
+ 
   function step() {
     if (i >= seq.length) {
       startGame();
@@ -451,12 +451,12 @@ function startCountdown() {
   }
   step();
 }
-
+ 
 /* =========================================================
    5. 본게임
 ========================================================= */
 let activeTargets = [];
-
+ 
 function startGame() {
   clearInterval(state.timerId);
   clearInterval(state.spawnTimerId);
@@ -469,9 +469,9 @@ function startGame() {
   $("game-field").innerHTML = "";
   updateHUD();
   showScreen("game");
-
+ 
   const cfg = DIFFICULTY_CONFIG[state.difficulty];
-
+ 
   state.timerId = setInterval(() => {
     if (state.isPaused) return;
     state.timeLeft--;
@@ -480,10 +480,10 @@ function startGame() {
       endGame();
     }
   }, 1000);
-
+ 
   scheduleSpawn(cfg);
 }
-
+ 
 function scheduleSpawn(cfg) {
   // 매 웨이브마다 부족한 만큼을 한꺼번에(동시에) 채워 넣음
   spawnWave(cfg);
@@ -492,14 +492,14 @@ function scheduleSpawn(cfg) {
     spawnWave(cfg);
   }, cfg.spawnInterval);
 }
-
+ 
 function spawnWave(cfg) {
   const needed = cfg.maxOnScreen - activeTargets.length;
   for (let i = 0; i < needed; i++) {
     spawnTarget(cfg);
   }
 }
-
+ 
 function isOverlapping(x, y, size, minGap) {
   return activeTargets.some((el) => {
     const ex = parseFloat(el.style.left);
@@ -507,7 +507,7 @@ function isOverlapping(x, y, size, minGap) {
     return Math.abs(x - ex) < size + minGap && Math.abs(y - ey) < size + minGap;
   });
 }
-
+ 
 function pickTargetType() {
   let r = Math.random() * TOTAL_WEIGHT;
   for (const t of TARGET_TYPES) {
@@ -516,7 +516,7 @@ function pickTargetType() {
   }
   return TARGET_TYPES[0];
 }
-
+ 
 function spawnTarget(cfg) {
   const type = pickTargetType();
   const field = $("game-field");
@@ -524,21 +524,21 @@ function spawnTarget(cfg) {
   const fh = field.clientHeight;
   const size = 64;
   const minGap = 12; // 표적 간 최소 간격
-
+ 
   let x, y, tries = 0;
   do {
     x = Math.random() * (fw - size - 20) + 10;
     y = Math.random() * (fh - size - 100) + 80; // HUD 영역 피하기
     tries++;
   } while (tries < 8 && isOverlapping(x, y, size, minGap));
-
+ 
   const el = document.createElement("div");
   el.className = `target ${type.className}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   el.innerHTML = `<img src="${type.image}" alt="${type.key}" draggable="false" />`;
   el.dataset.type = type.key;
-
+ 
   const removeTimer = setTimeout(() => removeTarget(el), cfg.lifeTime);
   el.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -556,20 +556,20 @@ function spawnTarget(cfg) {
     },
     { passive: false }
   );
-
+ 
   field.appendChild(el);
   activeTargets.push(el);
 }
-
+ 
 function removeTarget(el) {
   if (el.parentNode) el.parentNode.removeChild(el);
   activeTargets = activeTargets.filter((t) => t !== el);
 }
-
+ 
 function handleTargetClick(typeKey, el, clientX, clientY) {
   let delta = 0;
   let isGoldTriggerConsuming = typeKey !== "gold";
-
+ 
   switch (typeKey) {
     case "mole":
       delta = 1;
@@ -602,16 +602,16 @@ function handleTargetClick(typeKey, el, clientX, clientY) {
       removeTarget(el);
       return; // 점수 변동 없음, 골드 효과만 활성화
   }
-
+ 
   if (state.goldActive && isGoldTriggerConsuming) {
     delta *= 2;
     deactivateGold();
   }
-
+ 
   applyScore(delta, clientX, clientY);
   removeTarget(el);
 }
-
+ 
 function activateGold() {
   state.goldActive = true;
   $("gold-indicator").classList.remove("hidden");
@@ -620,13 +620,13 @@ function deactivateGold() {
   state.goldActive = false;
   $("gold-indicator").classList.add("hidden");
 }
-
+ 
 function applyScore(delta, x, y) {
   state.score += delta;
   updateHUD();
   showScorePopup(delta, x, y);
 }
-
+ 
 function showScorePopup(delta, x, y) {
   const popup = document.createElement("div");
   popup.className = `score-popup ${delta >= 0 ? "plus" : "minus"}`;
@@ -636,14 +636,14 @@ function showScorePopup(delta, x, y) {
   document.body.appendChild(popup);
   setTimeout(() => popup.remove(), 800);
 }
-
+ 
 function shakeScreen() {
   const field = $("game-field");
   field.classList.remove("shake");
   void field.offsetWidth;
   field.classList.add("shake");
 }
-
+ 
 function showWebOverlay() {
   const web = document.createElement("div");
   web.className = "web-overlay";
@@ -654,7 +654,7 @@ function showWebOverlay() {
     setTimeout(() => web.remove(), 800);
   }, 900);
 }
-
+ 
 /* ---------- 허공 클릭 (빗나감) ---------- */
 $("game-field").addEventListener("click", (e) => {
   if (state.isPaused) return;
@@ -671,20 +671,20 @@ $("game-field").addEventListener(
   },
   { passive: true }
 );
-
+ 
 function updateHUD() {
   const m = Math.floor(state.timeLeft / 60);
   const s = state.timeLeft % 60;
   $("hud-time").textContent = `${m}:${s.toString().padStart(2, "0")}`;
   $("hud-score").textContent = `점수 ${state.score}`;
 }
-
+ 
 /* ---------- 음소거 ---------- */
 $("btn-mute").addEventListener("click", () => {
   state.isMuted = !state.isMuted;
   $("btn-mute").textContent = state.isMuted ? "🔇" : "🔊";
 });
-
+ 
 /* ---------- 일시정지 ---------- */
 $("btn-pause").addEventListener("click", () => {
   state.isPaused = true;
@@ -694,7 +694,7 @@ $("btn-resume").addEventListener("click", () => {
   state.isPaused = false;
   $("pause-overlay").classList.add("hidden");
 });
-
+ 
 function endGame() {
   if (state.isGameOver) return; // 중복 호출 방지 (수학 문제 반복 생성 버그 수정)
   state.isGameOver = true;
@@ -706,7 +706,7 @@ function endGame() {
   deactivateGold();
   startSecondMath();
 }
-
+ 
 /* =========================================================
    6. 결과 화면
 ========================================================= */
@@ -715,21 +715,21 @@ function getGradeInfo(score, difficulty, isMobile) {
   const isImpossible = difficulty === "impossible";
   const table = isImpossible ? GRADES_IMPOSSIBLE : GRADES_NORMAL;
   const imageMap = isImpossible ? GRADE_IMAGE_MAP_IMPOSSIBLE : GRADE_IMAGE_MAP_NORMAL;
-
+ 
   let idx = 0;
   for (let i = 0; i < table.length; i++) {
     if (adjustedScore >= table[i].min) idx = i;
   }
   const goodCut = GOOD_END_CUT[difficulty] + (isMobile ? MOBILE_BONUS : 0);
   const isGoodEnd = score >= goodCut;
-
+ 
   return {
     name: table[idx].name,
     image: `end_images/${imageMap[idx]}.png`,
     isGoodEnd,
   };
 }
-
+ 
 function showResult() {
   const grade = getGradeInfo(state.score, state.difficulty, state.isMobile);
   const diffSec = (state.secondMathTime - state.firstMathTime).toFixed(2);
@@ -739,29 +739,29 @@ function showResult() {
       : diffSec > 0
       ? `수학 문제 풀이 시간 ${diffSec}초 증가`
       : `수학 문제 풀이 시간 변화 없음`;
-
+ 
   $("result-score").textContent = `최종 점수 ${state.score}`;
   $("result-grade").textContent = grade.name;
   $("result-mathdiff").textContent = diffText;
-
+ 
   const bg = $("result-bg");
   bg.style.backgroundImage = `url('${grade.image}')`;
   bg.style.backgroundColor = grade.isGoodEnd ? "#2a4d2a" : "#4d2a2a"; // 이미지 없을 때 대비 색
-
+ 
   playSound(grade.isGoodEnd ? "goodend" : "badend");
   showScreen("result");
-
+ 
   // 온라인 랭킹에 기록 저장 (난이도별 컬렉션)
   saveScoreToFirebase(state.difficulty, state.nickname, state.score, state.firstMathTime, state.secondMathTime);
 }
-
+ 
 $("btn-retry").addEventListener("click", () => {
   startFirstMath();
 });
 $("btn-mainmenu").addEventListener("click", () => {
   showScreen("main");
 });
-
+ 
 /* =========================================================
    초기화
 ========================================================= */
