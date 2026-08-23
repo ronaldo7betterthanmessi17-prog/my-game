@@ -30,6 +30,22 @@ try {
   db = null;
 }
 
+/* ---------- DOM 참조 (다른 모든 코드보다 먼저 정의되어야 함) ---------- */
+const $ = (id) => document.getElementById(id);
+const screens = {
+  main: $("screen-main"),
+  difficulty: $("screen-difficulty"),
+  math: $("screen-math"),
+  countdown: $("screen-countdown"),
+  game: $("screen-game"),
+  result: $("screen-result"),
+};
+
+function showScreen(name) {
+  Object.values(screens).forEach((el) => el.classList.remove("active"));
+  screens[name].classList.add("active");
+}
+
 // 난이도별 컬렉션에 점수 저장 (닉네임, 점수, 1차/2차 수학 풀이 시간 포함)
 async function saveScoreToFirebase(difficulty, nickname, score, firstMathTime, secondMathTime) {
   if (!db) return; // Firebase 사용 불가 시 조용히 건너뜀 (게임 진행에는 영향 없음)
@@ -199,22 +215,6 @@ const GRADE_IMAGE_MAP_IMPOSSIBLE = ["i1", "i2", "i3", "i4", "i5", "i6"];
 
 const GOOD_END_CUT = { easy: 65, normal: 65, hard: 65, impossible: 45 };
 const MOBILE_BONUS = 20;
-
-/* ---------- DOM 참조 ---------- */
-const $ = (id) => document.getElementById(id);
-const screens = {
-  main: $("screen-main"),
-  difficulty: $("screen-difficulty"),
-  math: $("screen-math"),
-  countdown: $("screen-countdown"),
-  game: $("screen-game"),
-  result: $("screen-result"),
-};
-
-function showScreen(name) {
-  Object.values(screens).forEach((el) => el.classList.remove("active"));
-  screens[name].classList.add("active");
-}
 
 /* =========================================================
    사운드 (Web Audio API로 카운트다운 비프음 생성, 나머지는 파일 재생)
