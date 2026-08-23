@@ -158,6 +158,7 @@ $("logo").addEventListener("click", () => {
   if (state.logoClickCount >= 7 && !state.impossibleUnlocked) {
     state.impossibleUnlocked = true;
     $("btn-impossible").classList.remove("hidden");
+    $("ranking-tab-impossible").classList.remove("hidden"); // 랭킹에서도 해제 후에만 노출
   }
 });
 
@@ -237,6 +238,7 @@ function startSecondMath() {
 function showMathScreen() {
   const q = genMathQuestion();
   state.mathAnswer = q.answer;
+  state.mathSubmitted = false; // 중복 제출 방지 플래그 초기화
   $("math-question").textContent = q.text;
   $("math-answer").value = "";
   $("math-feedback").textContent = "";
@@ -249,29 +251,35 @@ function showMathScreen() {
 }
 
 function submitMath() {
-  const userVal = parseInt($("math-answer").value, 10);
-  const elapsedSec = (performance.now() - state.mathStartTs) / 1000;
+  if (state.mathSubmitted) return; // 중복 제출(버튼+Enter 동시입력 등) 방지
+  state.mathSubmitted = true;
 
-  if (userVal === state.mathAnswer) {
+  const userVal = parseInt($("math-answer").value, 10);
+  let elapsedSec = (performance.now() - state.mathStartTs) / 1000;
+  const isCorrect = userVal === state.mathAnswer;
+
+  if (isCorrect) {
     $("math-feedback").textContent = `정답! (${elapsedSec.toFixed(2)}초)`;
     $("math-feedback").className = "feedback";
   } else {
-    $("math-feedback").textContent = `오답 (정답: ${state.mathAnswer}) - ${elapsedSec.toFixed(2)}초`;
+    elapsedSec += 0.5; // 오답 페널티 +0.5초
+    $("math-feedback").textContent = `오답 (정답: ${state.mathAnswer}) - ${elapsedSec.toFixed(2)}초 (오답 페널티 +0.5초 포함)`;
     $("math-feedback").className = "feedback wrong";
   }
 
   if (state.mathPhase === "first") {
     state.firstMathTime = elapsedSec;
-    setTimeout(() => startCountdown(), 700);
+    setTimeout(() => startCountdown(), 900);
   } else {
     state.secondMathTime = elapsedSec;
-    setTimeout(() => showResult(), 700);
+    setTimeout(() => showResult(), 900);
   }
 }
 $("btn-math-submit").addEventListener("click", submitMath);
 $("math-answer").addEventListener("keydown", (e) => {
   if (e.key === "Enter") submitMath();
 });
+
 
 /* =========================================================
    4. 카운트다운
