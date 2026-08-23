@@ -4,6 +4,115 @@
    (이미지 경로는 미리 잡아두고, 파일이 없으면 색상 블록으로 대체됨)
 ========================================================= */
 
+/* ---------- Firebase 초기화 (온라인 랭킹) ---------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyCBL6ZusKbNFXyK0RL-iukpl6z1F2dU0MQ",
+  authDomain: "mymolegame.firebaseapp.com",
+  projectId: "mymolegame",
+  storageBucket: "mymolegame.firebasestorage.app",
+  messagingSenderId: "1001599850545",
+  appId: "1:1001599850545:web:50c6d04e40b359985e1d10",
+  measurementId: "G-Z6NHPZ8630",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// 난이도별 컬렉션에 점수 저장 (닉네임, 점수, 1차/2차 수학 풀이 시간 포함)
+async function saveScoreToFirebase(difficulty, nickname, score, firstMathTime, secondMathTime) {
+  try {
+    await db.collection(`scores_${difficulty}`).add({
+      nickname,
+      score,
+      firstMathTime: Number(firstMathTime.toFixed(2)),
+      secondMathTime: Number(secondMathTime.toFixed(2)),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("랭킹 저장 실패:", err);
+  }
+}
+
+// 랭킹 페이지네이션 상태
+const rankingState = {
+  difficulty: "easy",
+  pageIndex: 0,       // 0부터 시작
+  pageSize: 10,
+  cursors: [null],    // cursors[i] = i번째 페이지의 시작 지점(이전 페이지 마지막 문서), [0]=null(첫 페이지)
+  lastDocOfPage: null, // 현재 페이지의 마지막 문서(다음 페이지 커서로 사용)
+  hasNextPage: false,
+};
+
+async function loadRankingPage(difficulty, pageIndex) {
+  const body = $("ranking-body");
+  body.innerHTML = `<p class="muted">불러오는 중...</p>`;
+  rankingState.difficulty = difficulty;
+  rankingState.pageIndex = pageIndex;
+
+  try {
+    let query = db.collection(`scores_${difficulty}`).orderBy("score", "desc").limit(rankingState.pageSize);
+    const cursor = rankingState.cursors[pageIndex];
+    if (cursor) query = query.startAfter(cursor);
+
+    const snapshot = await query.get();
+
+    if (snapshot.empty && pageIndex === 0) {
+      body.innerHTML = `<p class="muted">아직 기록이 없습니다.</p>`;
+      $("ranking-page-label").textContent = `1페이지`;
+      rankingState.hasNextPage = false;
+      updateRankingPagerButtons();
+      return;
+    }
+
+    let html = `<ol class="ranking-list" start="${pageIndex * rankingState.pageSize + 1}">`;
+    snapshot.forEach((doc, i) => {
+      const d = doc.data();
+      html += `<li class="ranking-item">
+        <span class="rank-num">${pageIndex * rankingState.pageSize + i + 1}</span>
+        <span class="rank-name">${escapeHtml(d.nickname)}</span>
+        <span class="rank-score">${d.score}점</span>
+        <span class="rank-math">문제풀이 ${d.firstMathTime}s → ${d.secondMathTime}s</span>
+      </li>`;
+    });
+    html += `</ol>`;
+    body.innerHTML = html;
+
+    // 다음 페이지 존재 여부 확인 (페이지 크기만큼 꽉 찼으면 다음 페이지가 있을 수 있음)
+    rankingState.lastDocOfPage = snapshot.docs[snapshot.docs.length - 1] || null;
+    rankingState.hasNextPage = snapshot.docs.length === rankingState.pageSize;
+    if (rankingState.hasNextPage && !rankingState.cursors[pageIndex + 1]) {
+      rankingState.cursors[pageIndex + 1] = rankingState.lastDocOfPage;
+    }
+
+    $("ranking-page-label").textContent = `${pageIndex + 1}페이지`;
+    updateRankingPagerButtons();
+  } catch (err) {
+    console.error("랭킹 조회 실패:", err);
+    body.innerHTML = `<p class="muted">랭킹을 불러오지 못했습니다.</p>`;
+  }
+}
+
+function updateRankingPagerButtons() {
+  $("btn-rank-prev").disabled = rankingState.pageIndex === 0;
+  $("btn-rank-next").disabled = !rankingState.hasNextPage;
+}
+
+$("btn-rank-prev").addEventListener("click", () => {
+  if (rankingState.pageIndex > 0) {
+    loadRankingPage(rankingState.difficulty, rankingState.pageIndex - 1);
+  }
+});
+$("btn-rank-next").addEventListener("click", () => {
+  if (rankingState.hasNextPage) {
+    loadRankingPage(rankingState.difficulty, rankingState.pageIndex + 1);
+  }
+});
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 /* ---------- 전역 상태 ---------- */
 const state = {
   nickname: "",
@@ -194,13 +303,20 @@ $("howto-body").appendChild(hintEl);
 $("btn-howto").addEventListener("click", () => $("howto-modal").classList.remove("hidden"));
 $("btn-howto-close").addEventListener("click", () => $("howto-modal").classList.add("hidden"));
 
-/* ---------- 랭킹 모달 (자리만, Firebase는 4순위) ---------- */
-$("btn-ranking").addEventListener("click", () => $("ranking-modal").classList.remove("hidden"));
+/* ---------- 랭킹 모달 (Firebase 연동, 페이지네이션 포함) ---------- */
+$("btn-ranking").addEventListener("click", () => {
+  $("ranking-modal").classList.remove("hidden");
+  const activeTab = document.querySelector("#ranking-tabs .tab-btn.active") || document.querySelector("#ranking-tabs .tab-btn");
+  rankingState.cursors = [null];
+  loadRankingPage(activeTab.dataset.diff, 0);
+});
 $("btn-ranking-close").addEventListener("click", () => $("ranking-modal").classList.add("hidden"));
 document.querySelectorAll("#ranking-tabs .tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll("#ranking-tabs .tab-btn").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
+    rankingState.cursors = [null];
+    loadRankingPage(btn.dataset.diff, 0);
   });
 });
 
@@ -613,6 +729,9 @@ function showResult() {
 
   playSound(grade.isGoodEnd ? "goodend" : "badend");
   showScreen("result");
+
+  // 온라인 랭킹에 기록 저장 (난이도별 컬렉션)
+  saveScoreToFirebase(state.difficulty, state.nickname, state.score, state.firstMathTime, state.secondMathTime);
 }
 
 $("btn-retry").addEventListener("click", () => {

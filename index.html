@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>집중력 두더지</title>
 <link rel="stylesheet" href="style.css" />
+<!-- Firebase SDK (compat 버전: import/export 문법 없이 바로 사용 가능) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -111,6 +114,11 @@
     </div>
     <div id="ranking-body" class="ranking-body">
       <p class="muted">아직 준비 중인 기능입니다.</p>
+    </div>
+    <div class="ranking-pager">
+      <button id="btn-rank-prev" class="btn-icon" aria-label="이전 페이지">‹</button>
+      <span id="ranking-page-label">1페이지</span>
+      <button id="btn-rank-next" class="btn-icon" aria-label="다음 페이지">›</button>
     </div>
     <button id="btn-ranking-close" class="btn btn-primary">닫기</button>
   </div>
