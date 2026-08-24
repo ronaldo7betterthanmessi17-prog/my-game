@@ -49,12 +49,15 @@ function showScreen(name) {
 // 난이도별 컬렉션에 점수 저장 (닉네임, 점수, 1차/2차 수학 풀이 시간 포함)
 async function saveScoreToFirebase(difficulty, nickname, score, firstMathTime, secondMathTime) {
   if (!db) return; // Firebase 사용 불가 시 조용히 건너뜀 (게임 진행에는 영향 없음)
+  const safeFirst = Number.isFinite(firstMathTime) ? Number(firstMathTime.toFixed(2)) : 0;
+  const safeSecond = Number.isFinite(secondMathTime) ? Number(secondMathTime.toFixed(2)) : 0;
+  const safeScore = Number.isFinite(score) ? score : 0;
   try {
     await db.collection(`scores_${difficulty}`).add({
-      nickname,
-      score,
-      firstMathTime: Number(firstMathTime.toFixed(2)),
-      secondMathTime: Number(secondMathTime.toFixed(2)),
+      nickname: nickname || "익명",
+      score: safeScore,
+      firstMathTime: safeFirst,
+      secondMathTime: safeSecond,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
   } catch (err) {
@@ -103,11 +106,15 @@ async function loadRankingPage(difficulty, pageIndex) {
     let html = `<ol class="ranking-list" start="${pageIndex * rankingState.pageSize + 1}">`;
     snapshot.forEach((doc, i) => {
       const d = doc.data();
+      const rankNum = pageIndex * rankingState.pageSize + i + 1; // 항상 정상적인 정수만 나오는 계산
+      const safeScore = safeNumber(d.score);
+      const safeFirst = safeNumber(d.firstMathTime);
+      const safeSecond = safeNumber(d.secondMathTime);
       html += `<li class="ranking-item">
-        <span class="rank-num">${pageIndex * rankingState.pageSize + i + 1}</span>
-        <span class="rank-name">${escapeHtml(d.nickname)}</span>
-        <span class="rank-score">${d.score}점</span>
-        <span class="rank-math">문제풀이 ${d.firstMathTime}s → ${d.secondMathTime}s</span>
+        <span class="rank-num">${rankNum}</span>
+        <span class="rank-name">${escapeHtml(d.nickname ?? "익명")}</span>
+        <span class="rank-score">${safeScore}점</span>
+        <span class="rank-math">문제풀이 ${safeFirst}s → ${safeSecond}s</span>
       </li>`;
     });
     html += `</ol>`;
@@ -143,6 +150,11 @@ $("btn-rank-next").addEventListener("click", () => {
     loadRankingPage(rankingState.difficulty, rankingState.pageIndex + 1);
   }
 });
+ 
+function safeNumber(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : "-";
+}
  
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -217,7 +229,7 @@ const GOOD_END_CUT = { easy: 65, normal: 65, hard: 65, impossible: 45 };
 const MOBILE_BONUS = 20;
  
 /* =========================================================
-   사운드 (Web Audio API로 카운트다운 비프음 생성, 나머지는 파일 재생)
+   사운드 (Web Audio API로 카운트다운 비프음 생성, 나머지는 미리 로드해둔 버퍼로 즉시 재생)
 ========================================================= */
 let audioCtx = null;
 function getAudioCtx() {
@@ -257,27 +269,51 @@ const SOUND_VOLUME = {
   goodend: 1,
   thunder: 0.5,
 };
+ 
+// 클릭 순간 파일을 새로 불러오면 디코딩 지연이 생기므로, 미리 디코딩된 AudioBuffer로 캐싱해둔다.
+const soundBuffers = {};
+let soundsPreloaded = false;
+ 
+async function preloadSounds() {
+  if (soundsPreloaded) return;
+  soundsPreloaded = true;
+  const ctx = getAudioCtx();
+  await Promise.all(
+    Object.entries(SOUND_FILES).map(async ([key, src]) => {
+      try {
+        const res = await fetch(src);
+        const arrayBuffer = await res.arrayBuffer();
+        soundBuffers[key] = await ctx.decodeAudioData(arrayBuffer);
+      } catch (err) {
+        console.warn(`사운드 사전 로드 실패: ${key}`, err);
+      }
+    })
+  );
+}
+ 
 function playSound(key) {
   if (state.isMuted) return;
-  const src = SOUND_FILES[key];
-  if (!src) return;
+  const buffer = soundBuffers[key];
   const volume = SOUND_VOLUME[key] ?? 1;
  
-  if (volume > 1) {
-    // 1.0을 넘는 볼륨은 HTML Audio가 지원하지 않으므로 Web Audio GainNode로 증폭
+  if (buffer) {
+    // 사전 로드된 버퍼가 있으면 지연 없이 즉시 재생 (GainNode로 볼륨도 함께 조절)
     const ctx = getAudioCtx();
-    const audio = new Audio(src);
-    audio.crossOrigin = "anonymous";
-    const source = ctx.createMediaElementSource(audio);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
     const gainNode = ctx.createGain();
     gainNode.gain.value = volume;
     source.connect(gainNode).connect(ctx.destination);
-    audio.play().catch(() => {});
-  } else {
-    const audio = new Audio(src);
-    audio.volume = volume;
-    audio.play().catch(() => {});
+    source.start(0);
+    return;
   }
+ 
+  // 사전 로드가 아직 안 됐거나 실패한 경우의 대비책(기존 방식)
+  const src = SOUND_FILES[key];
+  if (!src) return;
+  const audio = new Audio(src);
+  audio.volume = Math.min(volume, 1);
+  audio.play().catch(() => {});
 }
  
 /* =========================================================
@@ -766,3 +802,14 @@ $("btn-mainmenu").addEventListener("click", () => {
    초기화
 ========================================================= */
 showScreen("main");
+ 
+// 브라우저는 사용자 조작 이전에 오디오 재생/디코딩을 제한하므로,
+// 첫 클릭(또는 터치) 시점에 모든 사운드를 미리 로드해 이후 지연 없이 재생되게 함
+function preloadSoundsOnce() {
+  preloadSounds();
+  document.removeEventListener("click", preloadSoundsOnce);
+  document.removeEventListener("touchstart", preloadSoundsOnce);
+}
+document.addEventListener("click", preloadSoundsOnce, { once: true });
+document.addEventListener("touchstart", preloadSoundsOnce, { once: true });
+ 
