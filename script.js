@@ -812,4 +812,3 @@ function preloadSoundsOnce() {
 }
 document.addEventListener("click", preloadSoundsOnce, { once: true });
 document.addEventListener("touchstart", preloadSoundsOnce, { once: true });
- 
