@@ -1,4 +1,3 @@
-
 /* =========================================================
    집중력 두더지 - script.js
    1순위: 이미지 없이 도형/색으로 처음~끝까지 플레이 가능한 버전
@@ -79,6 +78,13 @@ const rankingState = {
 async function loadRankingPage(difficulty, pageIndex) {
   const body = $("ranking-body");
  
+  // pageIndex가 어떤 이유로든 숫자가 아니게 들어와도(0으로) 안전하게 보정
+  const safePageIndex = Number.isFinite(Number(pageIndex)) ? Number(pageIndex) : 0;
+  if (safePageIndex !== pageIndex) {
+    console.warn("loadRankingPage: pageIndex가 숫자가 아니어서 0으로 보정됨:", pageIndex);
+  }
+  pageIndex = safePageIndex;
+ 
   if (!db) {
     body.innerHTML = `<p class="muted">랭킹 기능을 사용할 수 없습니다. (네트워크 또는 광고 차단 확장 프로그램을 확인해주세요)</p>`;
     updateRankingPagerButtons();
@@ -107,7 +113,7 @@ async function loadRankingPage(difficulty, pageIndex) {
     let html = `<ol class="ranking-list" start="${pageIndex * rankingState.pageSize + 1}">`;
     snapshot.forEach((doc, i) => {
       const d = doc.data();
-      const rankNum = pageIndex * rankingState.pageSize + i + 1; // 항상 정상적인 정수만 나오는 계산
+      const rankNum = pageIndex * rankingState.pageSize + i + 1; // pageIndex가 항상 숫자로 보정되어 있어 NaN 불가능
       const safeScore = safeNumber(d.score);
       const safeFirst = safeNumber(d.firstMathTime);
       const safeSecond = safeNumber(d.secondMathTime);
