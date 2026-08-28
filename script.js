@@ -111,14 +111,17 @@ async function loadRankingPage(difficulty, pageIndex) {
     }
 
     let html = `<ol class="ranking-list" start="${pageIndex * rankingState.pageSize + 1}">`;
-    snapshot.forEach((doc, i) => {
+    let rankCounter = pageIndex * rankingState.pageSize; // 이 페이지 시작 전까지의 순위 개수
+    snapshot.forEach((doc) => {
+      // 주의: Firestore의 snapshot.forEach는 일반 배열 forEach와 달리 인덱스를 넘겨주지 않는다.
+      // (doc, i) 형태로 i를 받으면 i는 항상 undefined가 되어 NaN의 원인이 되므로 직접 카운터를 센다.
+      rankCounter++;
       const d = doc.data();
-      const rankNum = pageIndex * rankingState.pageSize + i + 1; // pageIndex가 항상 숫자로 보정되어 있어 NaN 불가능
       const safeScore = safeNumber(d.score);
       const safeFirst = safeNumber(d.firstMathTime);
       const safeSecond = safeNumber(d.secondMathTime);
       html += `<li class="ranking-item">
-        <span class="rank-num">${rankNum}</span>
+        <span class="rank-num">${rankCounter}</span>
         <span class="rank-name">${escapeHtml(d.nickname ?? "익명")}</span>
         <span class="rank-score">${safeScore}점</span>
         <span class="rank-math">문제풀이 ${safeFirst}s → ${safeSecond}s</span>
