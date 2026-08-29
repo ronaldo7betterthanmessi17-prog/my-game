@@ -198,7 +198,7 @@ const DIFFICULTY_CONFIG = {
   easy:       { spawnInterval: 1400, maxOnScreen: 5,  lifeTime: 1500 },
   normal:     { spawnInterval: 1100, maxOnScreen: 8,  lifeTime: 1200 },
   hard:       { spawnInterval: 950,  maxOnScreen: 11, lifeTime: 1000 },
-  impossible: { spawnInterval: 550,  maxOnScreen: 20, lifeTime: 480 },
+  impossible: { spawnInterval: 650,  maxOnScreen: 20, lifeTime: 600 },
 };
 
 /* ---------- 목표 종류별 점수/확률/스폰가중치 ---------- */
@@ -225,18 +225,20 @@ const GRADES_NORMAL = [
 ];
 const GRADES_IMPOSSIBLE = [
   { name: "강등위기닭집급", min: 0 },
-  { name: "17년무관급", min: 25 },
-  { name: "PK실축급", min: 55 },
-  { name: "아우디컵우승급", min: 90 },
-  { name: "챔피언스리그우승급", min: 130 },
-  { name: "탄소기반유기체역사상유일무이언터져블대체불가. 룩셈부로크의 제앙, 산마리노를 박살내 교황청을 경악하게 한 자. 리히텐슈타인의 사형집행인, 지브롤터에 절망을 선사하는 자, 페로제도의 폭풍을 몰고 오는 자. 에스토니아에 진노의 일곱 대접을 쏟아붓는 자, 아르메니아에 멸망의 계시록을 낭독하는 자, 몰도바를 심연으로 가라앉히는 자. 우즈베키스탄을 찢어버리는 자, 안도라에 6골 폭격을 퍼붓는 자, 카자흐스탄을 중앙아시아에서 가장 불행한 나라로 만든 카자흐 파멸자. 몰타를 국제전에서 박살낸 몰타 학살귀, 키프로스를 완전 관광시킨 키프로스 파멸자, 리투아니아를 7골로 울음바다 만든 리투아니아 학살자, 말뫼 FF를 파괴해 즐라탄의 분노를 사는 자. 갈라타사라이 팬들의 눈물로 해수면 상승을 일으키는 자, 전 세계 팬들의 뜨거운 열기로 지구온난화를 일으키는 자. 그러나, 콩고민주공화국에게는 압도적인 강자로서 자비를 베푸는 킹갓호날두급", min: 180 },
+  { name: "17년무관급", min: 20 },
+  { name: "PK실축급", min: 45 },
+  { name: "아우디컵우승급", min: 75 },
+  { name: "챔피언스리그우승급", min: 110 },
+  { name: "탄소기반유기체역사상유일무이언터져블대체불가. 룩셈부로크의 제앙, 산마리노를 박살내 교황청을 경악하게 한 자. 리히텐슈타인의 사형집행인, 지브롤터에 절망을 선사하는 자, 페로제도의 폭풍을 몰고 오는 자. 에스토니아에 진노의 일곱 대접을 쏟아붓는 자, 아르메니아에 멸망의 계시록을 낭독하는 자, 몰도바를 심연으로 가라앉히는 자. 우즈베키스탄을 찢어버리는 자, 안도라에 6골 폭격을 퍼붓는 자, 카자흐스탄을 중앙아시아에서 가장 불행한 나라로 만든 카자흐 파멸자. 몰타를 국제전에서 박살낸 몰타 학살귀, 키프로스를 완전 관광시킨 키프로스 파멸자, 리투아니아를 7골로 울음바다 만든 리투아니아 학살자, 말뫼 FF를 파괴해 즐라탄의 분노를 사는 자. 갈라타사라이 팬들의 눈물로 해수면 상승을 일으키는 자, 전 세계 팬들의 뜨거운 열기로 지구온난화를 일으키는 자. 그러나, 콩고민주공화국에게는 압도적인 강자로서 자비를 베푸는 킹갓호날두급", min: 150 },
 ];
 // 등급 이미지 파일명 매핑 (end_images/n1.png ~ n8.png, i1.png ~ i6.png)
 const GRADE_IMAGE_MAP_NORMAL = ["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8"];
 const GRADE_IMAGE_MAP_IMPOSSIBLE = ["i1", "i2", "i3", "i4", "i5", "i6"];
 
-const GOOD_END_CUT = { easy: 78, normal: 78, hard: 78, impossible: 90 };
-const MOBILE_BONUS = 45; // 모바일은 손가락으로 여러 표적을 동시에 터치하기 쉬워 점수를 얻기 훨씬 유리하므로, 같은 등급을 받으려면 PC보다 45점 더 높아야 함
+const GOOD_END_CUT = { easy: 78, normal: 78, hard: 78, impossible: 75 };
+// 모바일은 손가락으로 여러 표적을 동시에 터치하기 쉬워 점수를 얻기 유리하므로, 같은 등급을 받으려면 PC보다 더 높은 점수가 필요함
+// impossible은 이미 극악한 난이도라 다른 난이도보다는 페널티를 완화함(20~30점대)
+const MOBILE_BONUS = { easy: 45, normal: 45, hard: 45, impossible: 25 };
 
 /* =========================================================
    사운드 (Web Audio API로 카운트다운 비프음 생성, 나머지는 미리 로드해둔 버퍼로 즉시 재생)
@@ -366,12 +368,10 @@ const HOWTO_TEXT = `[게임 목표]
 5. 결과 확인: 최종 점수, 등급, 그리고 게임 전후 수학 문제 풀이 시간 변화(집중력 향상 여부)를 보여줍니다
 
 [난이도]
-easy / normal / hard 세 가지 정규 난이도 중 선택할 수 있습니다.
+easy / normal / hard 세 가지 난이도 중 선택할 수 있습니다.
 난이도가 높을수록 표적이 더 자주, 더 많이, 더 빨리 나타났다 사라집니다.
-숨겨진 네 번째 난이도는 이름 그대로 사람이 감당하기 힘든 속도와 밀도로 표적이 쏟아지며, 등급을 받기 위한 점수 기준도 훨씬 높습니다.
 
 [등급 안내]
-easy / normal / hard 는 8단계, 숨겨진 난이도는 6단계의 등급으로 나뉩니다.
 점수가 높을수록 더 높은 등급을 받으며, 등급 사이의 점수 간격은 위로 갈수록 점점 더 벌어집니다 (상위 등급일수록 올라가기 어려워짐).
 일정 점수 이상을 넘기면 굿엔드, 못 넘기면 배드엔드 연출과 함께 결과가 표시됩니다.
 모바일(터치)은 손가락으로 여러 표적을 동시에 스치듯 눌러 점수를 얻기 유리하기 때문에, 같은 등급을 받으려면 PC보다 훨씬 더 높은 점수가 필요합니다.
@@ -790,7 +790,8 @@ function endGame() {
    6. 결과 화면
 ========================================================= */
 function getGradeInfo(score, difficulty, isMobile) {
-  const adjustedScore = isMobile ? score - MOBILE_BONUS : score; // 모바일은 45점 낮춰서 비교 => 같은 등급을 받으려면 PC보다 훨씬 높은 점수가 필요
+  const mobileBonus = MOBILE_BONUS[difficulty] ?? 45;
+  const adjustedScore = isMobile ? score - mobileBonus : score; // 모바일은 난이도별 보너스만큼 낮춰서 비교 => 같은 등급을 받으려면 PC보다 더 높은 점수가 필요
   const isImpossible = difficulty === "impossible";
   const table = isImpossible ? GRADES_IMPOSSIBLE : GRADES_NORMAL;
   const imageMap = isImpossible ? GRADE_IMAGE_MAP_IMPOSSIBLE : GRADE_IMAGE_MAP_NORMAL;
@@ -799,7 +800,7 @@ function getGradeInfo(score, difficulty, isMobile) {
   for (let i = 0; i < table.length; i++) {
     if (adjustedScore >= table[i].min) idx = i;
   }
-  const goodCut = GOOD_END_CUT[difficulty] + (isMobile ? MOBILE_BONUS : 0);
+  const goodCut = GOOD_END_CUT[difficulty] + (isMobile ? mobileBonus : 0);
   const isGoodEnd = score >= goodCut;
 
   return {
