@@ -198,7 +198,7 @@ const DIFFICULTY_CONFIG = {
   easy:       { spawnInterval: 1400, maxOnScreen: 5,  lifeTime: 1500 },
   normal:     { spawnInterval: 1100, maxOnScreen: 8,  lifeTime: 1200 },
   hard:       { spawnInterval: 950,  maxOnScreen: 11, lifeTime: 1000 },
-  impossible: { spawnInterval: 800,  maxOnScreen: 14, lifeTime: 850 },
+  impossible: { spawnInterval: 550,  maxOnScreen: 20, lifeTime: 480 },
 };
 
 /* ---------- 목표 종류별 점수/확률/스폰가중치 ---------- */
@@ -212,31 +212,31 @@ const TARGET_TYPES = [
 ];
 const TOTAL_WEIGHT = TARGET_TYPES.reduce((s, t) => s + t.weight, 0);
 
-/* ---------- 등급 구간 (PC 기준, 모바일은 +20점) ---------- */
+/* ---------- 등급 구간 (PC 기준, 모바일은 -45점 페널티 — 높은 등급일수록 간격이 점점 넓어짐) ---------- */
 const GRADES_NORMAL = [
   { name: "벤치급", min: 0 },
-  { name: "날강두급", min: 20 },
-  { name: "런닝머신두급", min: 35 },
-  { name: "중롱도르급", min: 50 },
-  { name: "호날두급", min: 65 },
-  { name: "킹갓두급", min: 80 },
-  { name: "챔스의사나이급", min: 95 },
-  { name: "5발롱5챔스의전설월드컵6회연속출전및연속득점킹갓Cristiano Ronaldo dos Santos Aveiro급", min: 110 },
+  { name: "날강두급", min: 15 },
+  { name: "런닝머신두급", min: 33 },
+  { name: "중롱도르급", min: 54 },
+  { name: "호날두급", min: 78 },
+  { name: "킹갓두급", min: 105 },
+  { name: "챔스의사나이급", min: 135 },
+  { name: "5발롱5챔스의전설월드컵6회연속출전및연속득점킹갓Cristiano Ronaldo dos Santos Aveiro급", min: 168 },
 ];
 const GRADES_IMPOSSIBLE = [
   { name: "강등위기닭집급", min: 0 },
-  { name: "17년무관급", min: 15 },
-  { name: "PK실축급", min: 30 },
-  { name: "아우디컵우승급", min: 45 },
-  { name: "챔피언스리그우승급", min: 60 },
-  { name: "탄소기반유기체역사상유일무이언터져블대체불가. 룩셈부로크의 제앙, 산마리노를 박살내 교황청을 경악하게 한 자. 리히텐슈타인의 사형집행인, 지브롤터에 절망을 선사하는 자, 페로제도의 폭풍을 몰고 오는 자. 에스토니아에 진노의 일곱 대접을 쏟아붓는 자, 아르메니아에 멸망의 계시록을 낭독하는 자, 몰도바를 심연으로 가라앉히는 자. 우즈베키스탄을 찢어버리는 자, 안도라에 6골 폭격을 퍼붓는 자, 카자흐스탄을 중앙아시아에서 가장 불행한 나라로 만든 카자흐 파멸자. 몰타를 국제전에서 박살낸 몰타 학살귀, 키프로스를 완전 관광시킨 키프로스 파멸자, 리투아니아를 7골로 울음바다 만든 리투아니아 학살자, 말뫼 FF를 파괴해 즐라탄의 분노를 사는 자. 갈라타사라이 팬들의 눈물로 해수면 상승을 일으키는 자, 전 세계 팬들의 뜨거운 열기로 지구온난화를 일으키는 자. 그러나, 콩고민주공화국에게는 압도적인 강자로서 자비를 베푸는 킹갓호날두급", min: 80 },
+  { name: "17년무관급", min: 25 },
+  { name: "PK실축급", min: 55 },
+  { name: "아우디컵우승급", min: 90 },
+  { name: "챔피언스리그우승급", min: 130 },
+  { name: "탄소기반유기체역사상유일무이언터져블대체불가. 룩셈부로크의 제앙, 산마리노를 박살내 교황청을 경악하게 한 자. 리히텐슈타인의 사형집행인, 지브롤터에 절망을 선사하는 자, 페로제도의 폭풍을 몰고 오는 자. 에스토니아에 진노의 일곱 대접을 쏟아붓는 자, 아르메니아에 멸망의 계시록을 낭독하는 자, 몰도바를 심연으로 가라앉히는 자. 우즈베키스탄을 찢어버리는 자, 안도라에 6골 폭격을 퍼붓는 자, 카자흐스탄을 중앙아시아에서 가장 불행한 나라로 만든 카자흐 파멸자. 몰타를 국제전에서 박살낸 몰타 학살귀, 키프로스를 완전 관광시킨 키프로스 파멸자, 리투아니아를 7골로 울음바다 만든 리투아니아 학살자, 말뫼 FF를 파괴해 즐라탄의 분노를 사는 자. 갈라타사라이 팬들의 눈물로 해수면 상승을 일으키는 자, 전 세계 팬들의 뜨거운 열기로 지구온난화를 일으키는 자. 그러나, 콩고민주공화국에게는 압도적인 강자로서 자비를 베푸는 킹갓호날두급", min: 180 },
 ];
 // 등급 이미지 파일명 매핑 (end_images/n1.png ~ n8.png, i1.png ~ i6.png)
 const GRADE_IMAGE_MAP_NORMAL = ["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8"];
 const GRADE_IMAGE_MAP_IMPOSSIBLE = ["i1", "i2", "i3", "i4", "i5", "i6"];
 
-const GOOD_END_CUT = { easy: 65, normal: 65, hard: 65, impossible: 45 };
-const MOBILE_BONUS = 20;
+const GOOD_END_CUT = { easy: 78, normal: 78, hard: 78, impossible: 90 };
+const MOBILE_BONUS = 45; // 모바일은 손가락으로 여러 표적을 동시에 터치하기 쉬워 점수를 얻기 훨씬 유리하므로, 같은 등급을 받으려면 PC보다 45점 더 높아야 함
 
 /* =========================================================
    사운드 (Web Audio API로 카운트다운 비프음 생성, 나머지는 미리 로드해둔 버퍼로 즉시 재생)
@@ -345,30 +345,50 @@ $("btn-start").addEventListener("click", () => {
 });
 
 /* ---------- 게임 설명 모달 ---------- */
-const HOWTO_TEXT = `[목표 종류]
-두더지: +1점
-다이아몬드 블록: +3점
-에메랄드 블록: 80% 확률 +5점 / 20% 확률 -3점
-크리퍼: -3점 (클릭 시 화면 흔들림)
-좀벌레: -2점 (클릭 시 거미줄로 잠깐 시야 방해)
-금 블록: 다음에 받는 점수가 2배! (다른 목표를 클릭하면 효과 종료)
+const HOWTO_TEXT = `[게임 목표]
+60초 동안 화면에 무작위로 나타나는 표적을 클릭해 최대한 높은 점수를 만드세요.
+표적은 완전히 랜덤한 위치에 나타났다가 일정 시간 뒤 사라지며, 종류에 따라 점수와 효과가 다릅니다.
+
+[목표 종류]
+두더지: 클릭 시 +1점 (가장 흔하게 등장)
+다이아몬드 블록: 클릭 시 +3점
+에메랄드 블록: 클릭 시 80% 확률로 +5점, 20% 확률로 -3점 (하이리스크 하이리턴)
+크리퍼: 클릭 시 -3점, 화면이 흔들리는 페널티 연출 발생
+좀벌레: 클릭 시 -2점, 거미줄이 잠깐 화면을 덮어 시야만 방해 (점수에는 영향 없음)
+금 블록: 클릭해도 점수 변화는 없지만, 그 다음 클릭에서 얻는 점수(또는 잃는 점수)가 2배로 적용됩니다. 단, 아무 목표나 한 번 클릭하는 순간 효과가 사라지니 타이밍이 중요합니다. 허공을 클릭해도 효과는 유지됩니다.
 허공 클릭(빗나감): -1점
 
 [진행 순서]
-수학 문제 → 카운트다운 → 60초 본게임 → 수학 문제 → 결과 확인
+1. 2자리 수 덧셈/뺄셈 문제 풀기 (게임 전 집중력 측정용, 틀리면 다시 풀어야 하고 오답마다 +0.5초 페널티)
+2. 3초 카운트다운 (1, 2, 3, START!)
+3. 60초 동안 본게임 플레이
+4. 게임 종료 후 같은 방식으로 수학 문제 다시 풀기
+5. 결과 확인: 최종 점수, 등급, 그리고 게임 전후 수학 문제 풀이 시간 변화(집중력 향상 여부)를 보여줍니다
 
 [난이도]
-easy / normal / hard 중 선택 가능
-숨겨진 난이도도... 있다던데?`;
+easy / normal / hard 세 가지 정규 난이도 중 선택할 수 있습니다.
+난이도가 높을수록 표적이 더 자주, 더 많이, 더 빨리 나타났다 사라집니다.
+숨겨진 네 번째 난이도는 이름 그대로 사람이 감당하기 힘든 속도와 밀도로 표적이 쏟아지며, 등급을 받기 위한 점수 기준도 훨씬 높습니다.
+
+[등급 안내]
+easy / normal / hard 는 8단계, 숨겨진 난이도는 6단계의 등급으로 나뉩니다.
+점수가 높을수록 더 높은 등급을 받으며, 등급 사이의 점수 간격은 위로 갈수록 점점 더 벌어집니다 (상위 등급일수록 올라가기 어려워짐).
+일정 점수 이상을 넘기면 굿엔드, 못 넘기면 배드엔드 연출과 함께 결과가 표시됩니다.
+모바일(터치)은 손가락으로 여러 표적을 동시에 스치듯 눌러 점수를 얻기 유리하기 때문에, 같은 등급을 받으려면 PC보다 훨씬 더 높은 점수가 필요합니다.
+
+[온라인 랭킹]
+게임이 끝나면 자동으로 난이도별 온라인 랭킹에 닉네임과 점수, 수학 문제 풀이 시간이 기록됩니다.
+메인 화면의 '랭킹' 버튼에서 난이도별로 전체 순위를 확인할 수 있습니다.`;
 
 $("howto-body").textContent = HOWTO_TEXT;
 const hintEl = document.createElement("p");
 hintEl.className = "howto-hint";
-hintEl.textContent = "ronaldo7";
+hintEl.textContent = "그의 등번호는 두 자릿수가 아니다. 문을 두드리고 싶다면, 문장 부호처럼 그 숫자만큼 반복하라.";
 $("howto-body").appendChild(hintEl);
 
 $("btn-howto").addEventListener("click", () => $("howto-modal").classList.remove("hidden"));
 $("btn-howto-close").addEventListener("click", () => $("howto-modal").classList.add("hidden"));
+
 
 /* ---------- 랭킹 모달 (Firebase 연동, 페이지네이션 포함) ---------- */
 $("btn-ranking").addEventListener("click", () => {
@@ -732,13 +752,26 @@ $("btn-mute").addEventListener("click", () => {
 });
 
 /* ---------- 일시정지 ---------- */
-$("btn-pause").addEventListener("click", () => {
+function pauseGame() {
   state.isPaused = true;
   $("pause-overlay").classList.remove("hidden");
-});
-$("btn-resume").addEventListener("click", () => {
+}
+function resumeGame() {
   state.isPaused = false;
   $("pause-overlay").classList.add("hidden");
+}
+$("btn-pause").addEventListener("click", pauseGame);
+$("btn-resume").addEventListener("click", resumeGame);
+
+// PC에서 ESC 키로 본게임 중 일시정지/재개 토글
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!screens.game.classList.contains("active")) return; // 본게임 화면일 때만 동작
+  if (state.isPaused) {
+    resumeGame();
+  } else {
+    pauseGame();
+  }
 });
 
 function endGame() {
@@ -757,7 +790,7 @@ function endGame() {
    6. 결과 화면
 ========================================================= */
 function getGradeInfo(score, difficulty, isMobile) {
-  const adjustedScore = isMobile ? score - MOBILE_BONUS : score; // 모바일 등급컷 +20점 => 같은 등급 받으려면 더 높아야 함 => 비교시 -20 보정
+  const adjustedScore = isMobile ? score - MOBILE_BONUS : score; // 모바일은 45점 낮춰서 비교 => 같은 등급을 받으려면 PC보다 훨씬 높은 점수가 필요
   const isImpossible = difficulty === "impossible";
   const table = isImpossible ? GRADES_IMPOSSIBLE : GRADES_NORMAL;
   const imageMap = isImpossible ? GRADE_IMAGE_MAP_IMPOSSIBLE : GRADE_IMAGE_MAP_NORMAL;
