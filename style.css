@@ -239,8 +239,10 @@ input:focus { border-color: var(--accent); }
 .result-bg {
   position: absolute;
   inset: 0;
-  background-size: cover;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
+  background-color: #0a0a0f;
   display: flex;
   align-items: flex-end;
 }
@@ -255,7 +257,14 @@ input:focus { border-color: var(--accent); }
   text-align: center;
 }
 .result-score { margin: 0; opacity: 0.85; font-size: 14px; }
-.result-grade { margin: 0; font-size: 22px; font-weight: 800; }
+.result-grade {
+  margin: 0;
+  font-size: clamp(13px, 4.2vw, 22px);
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
 .result-mathdiff { margin: 0; opacity: 0.85; font-size: 13px; }
 .result-overlay .btn-row { width: 100%; max-width: 340px; margin-top: 10px; }
 
@@ -272,7 +281,7 @@ input:focus { border-color: var(--accent); }
 
 .howto-body { font-size: 14px; line-height: 1.6; color: var(--text); white-space: pre-line; }
 .howto-hint {
-  opacity: 0.08;
+  opacity: 0.18;
   font-size: 11px;
   margin-top: 14px;
   user-select: text;
