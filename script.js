@@ -198,7 +198,7 @@ const DIFFICULTY_CONFIG = {
   easy:       { spawnInterval: 1400, maxOnScreen: 5,  lifeTime: 1500 },
   normal:     { spawnInterval: 1100, maxOnScreen: 8,  lifeTime: 1200 },
   hard:       { spawnInterval: 950,  maxOnScreen: 11, lifeTime: 1000 },
-  impossible: { spawnInterval: 650,  maxOnScreen: 20, lifeTime: 600 },
+  impossible: { spawnInterval: 550,  maxOnScreen: 20, lifeTime: 500 },
 };
 
 /* ---------- 목표 종류별 점수/확률/스폰가중치 ---------- */
@@ -238,7 +238,7 @@ const GRADE_IMAGE_MAP_IMPOSSIBLE = ["i1", "i2", "i3", "i4", "i5", "i6"];
 const GOOD_END_CUT = { easy: 78, normal: 78, hard: 78, impossible: 75 };
 // 모바일은 손가락으로 여러 표적을 동시에 터치하기 쉬워 점수를 얻기 유리하므로, 같은 등급을 받으려면 PC보다 더 높은 점수가 필요함
 // impossible은 이미 극악한 난이도라 다른 난이도보다는 페널티를 완화함(20~30점대)
-const MOBILE_BONUS = { easy: 45, normal: 45, hard: 45, impossible: 25 };
+const MOBILE_BONUS = { easy: 45, normal: 45, hard: 45, impossible: 35 };
 
 /* =========================================================
    사운드 (Web Audio API로 카운트다운 비프음 생성, 나머지는 미리 로드해둔 버퍼로 즉시 재생)
