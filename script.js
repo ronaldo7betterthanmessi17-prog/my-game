@@ -336,6 +336,7 @@ $("logo").addEventListener("click", () => {
   if (state.logoClickCount >= 7 && !state.impossibleUnlocked) {
     state.impossibleUnlocked = true;
     $("btn-impossible").classList.remove("hidden");
+    $("btn-impossible-info").classList.remove("hidden");
     $("ranking-tab-impossible").classList.remove("hidden"); // 랭킹에서도 해제 후에만 노출
   }
 });
@@ -385,13 +386,12 @@ function buildGradeRangeText(table) {
 }
 
 function renderHowtoBody() {
-  const normalCfg = DIFFICULTY_CONFIG.normal;
   let text = HOWTO_BASE_TEXT;
 
   text += `\n\n[등급컷 안내 — easy / normal / hard 공통, PC 기준]
 점수가 높을수록 더 높은 등급을 받으며, 등급 사이의 점수 간격은 위로 갈수록 점점 더 벌어집니다 (상위 등급일수록 올라가기 어려워짐).
 ${GOOD_END_CUT.normal}점 이상이면 굿엔드, 미만이면 배드엔드 연출과 함께 결과가 표시됩니다.
-모바일(터치)은 손가락으로 여러 표적을 동시에 스치듯 눌러 점수를 얻기 유리하기 때문에, 같은 등급을 받으려면 PC보다 ${MOBILE_BONUS.normal}점 더 높은 점수가 필요합니다.
+모바일(터치)은 손가락으로 여러 표적을 동시에 스치듯 눌러 점수를 얻기 유리하기 때문에, 같은 등급을 받으려면 PC보다 정확히 +${MOBILE_BONUS.normal}점이 필요합니다.
 
 [등급 점수 구간 — easy / normal / hard]
 ${buildGradeRangeText(GRADES_NORMAL)}
@@ -399,20 +399,6 @@ ${buildGradeRangeText(GRADES_NORMAL)}
 [온라인 랭킹]
 게임이 끝나면 자동으로 난이도별 온라인 랭킹에 닉네임과 점수, 수학 문제 풀이 시간이 기록됩니다.
 메인 화면의 '랭킹' 버튼에서 난이도별로 전체 순위를 확인할 수 있습니다.`;
-
-  if (state.impossibleUnlocked) {
-    const impCfg = DIFFICULTY_CONFIG.impossible;
-    text += `\n\n[히든 난이도: IMPOSSIBLE — 해금됨]
-이름 그대로, 사람이 실시간으로 반응하기 버거운 속도와 밀도로 표적이 쏟아집니다.
-표적 등장 간격 ${(impCfg.spawnInterval / 1000).toFixed(2)}초, 동시 최대 ${impCfg.maxOnScreen}개, 표적 유지 시간 ${(impCfg.lifeTime / 1000).toFixed(2)}초로 다른 모든 난이도보다 훨씬 빡빡하게 설정되어 있습니다.
-${GOOD_END_CUT.impossible}점 이상이면 굿엔드, 미만이면 배드엔드입니다.
-모바일 페널티는 ${MOBILE_BONUS.impossible}점으로, 다른 난이도(${MOBILE_BONUS.normal}점)보다는 다소 완화되어 있습니다 (이미 난이도 자체가 매우 높기 때문).
-
-[IMPOSSIBLE 등급 점수 구간]
-${buildGradeRangeText(GRADES_IMPOSSIBLE)}`;
-  } else {
-    text += `\n\n(아직 발견하지 못한 무언가가 있는 것 같습니다...)`;
-  }
 
   $("howto-body").textContent = text;
   const hintEl = document.createElement("p");
@@ -424,10 +410,32 @@ ${buildGradeRangeText(GRADES_IMPOSSIBLE)}`;
 renderHowtoBody();
 
 $("btn-howto").addEventListener("click", () => {
-  renderHowtoBody(); // 열 때마다 최신 해금 상태를 반영해 다시 그림
   $("howto-modal").classList.remove("hidden");
 });
 $("btn-howto-close").addEventListener("click", () => $("howto-modal").classList.add("hidden"));
+
+/* ---------- IMPOSSIBLE 난이도 전용 정보 (해금 후에만 버튼으로 열람 가능) ---------- */
+function renderImpossibleInfoBody() {
+  const impCfg = DIFFICULTY_CONFIG.impossible;
+  const text = `[IMPOSSIBLE 난이도 정보]
+이름 그대로, 사람이 실시간으로 반응하기 버거운 속도와 밀도로 표적이 쏟아집니다.
+표적 등장 간격 ${(impCfg.spawnInterval / 1000).toFixed(2)}초, 동시 최대 ${impCfg.maxOnScreen}개, 표적 유지 시간 ${(impCfg.lifeTime / 1000).toFixed(2)}초로 다른 모든 난이도보다 훨씬 빡빡하게 설정되어 있습니다.
+
+[등급컷 안내]
+${GOOD_END_CUT.impossible}점 이상이면 굿엔드, 미만이면 배드엔드입니다.
+모바일(터치)은 다른 난이도와 마찬가지로 유리하지만, IMPOSSIBLE은 난이도 자체가 매우 높은 점을 감안해 페널티를 완화했습니다: 같은 등급을 받으려면 PC보다 정확히 +${MOBILE_BONUS.impossible}점이 필요합니다.
+
+[IMPOSSIBLE 등급 점수 구간]
+${buildGradeRangeText(GRADES_IMPOSSIBLE)}`;
+
+  $("impossible-info-body").textContent = text;
+}
+
+$("btn-impossible-info").addEventListener("click", () => {
+  renderImpossibleInfoBody();
+  $("impossible-info-modal").classList.remove("hidden");
+});
+$("btn-impossible-info-close").addEventListener("click", () => $("impossible-info-modal").classList.add("hidden"));
 
 
 /* ---------- 랭킹 모달 (Firebase 연동, 페이지네이션 포함) ---------- */

@@ -34,6 +34,7 @@
       <button class="btn diff-btn" data-diff="hard">HARD <span>빡빡하게</span></button>
       <button id="btn-impossible" class="btn diff-btn hidden" data-diff="impossible">IMPOSSIBLE <span>???</span></button>
     </div>
+    <button id="btn-impossible-info" class="btn btn-ghost hidden">IMPOSSIBLE 난이도 정보</button>
     <button id="btn-back-main" class="btn btn-ghost">뒤로</button>
   </div>
 </section>
@@ -92,6 +93,15 @@
     </div>
   </div>
 </section>
+
+<!-- IMPOSSIBLE 난이도 전용 정보 모달 (해금 후에만 버튼으로 접근 가능) -->
+<div id="impossible-info-modal" class="overlay hidden">
+  <div class="panel panel-scroll">
+    <h2>IMPOSSIBLE 난이도 정보</h2>
+    <div id="impossible-info-body" class="howto-body"></div>
+    <button id="btn-impossible-info-close" class="btn btn-primary">닫기</button>
+  </div>
+</div>
 
 <!-- 게임 설명 모달 -->
 <div id="howto-modal" class="overlay hidden">
