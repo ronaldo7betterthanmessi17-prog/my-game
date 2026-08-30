@@ -346,8 +346,8 @@ $("btn-start").addEventListener("click", () => {
   showScreen("difficulty");
 });
 
-/* ---------- 게임 설명 모달 ---------- */
-const HOWTO_TEXT = `[게임 목표]
+/* ---------- 게임 설명 모달 (등급컷은 실제 데이터 기반으로 자동 생성, 히든 해금 시 내용 확장) ---------- */
+const HOWTO_BASE_TEXT = `[게임 목표]
 60초 동안 화면에 무작위로 나타나는 표적을 클릭해 최대한 높은 점수를 만드세요.
 표적은 완전히 랜덤한 위치에 나타났다가 일정 시간 뒤 사라지며, 종류에 따라 점수와 효과가 다릅니다.
 
@@ -369,24 +369,64 @@ const HOWTO_TEXT = `[게임 목표]
 
 [난이도]
 easy / normal / hard 세 가지 난이도 중 선택할 수 있습니다.
-난이도가 높을수록 표적이 더 자주, 더 많이, 더 빨리 나타났다 사라집니다.
+난이도가 높을수록 표적이 더 자주, 더 많이, 더 빨리 나타났다 사라집니다.`;
 
-[등급 안내]
+// 등급표(min 배열)를 기반으로 "0~19점: 벤치급" 같은 구간 설명을 자동 생성 (숫자를 바꿔도 설명이 항상 실제 값과 일치함)
+function buildGradeRangeText(table) {
+  return table
+    .map((g, i) => {
+      const min = g.min;
+      const max = table[i + 1] ? table[i + 1].min - 1 : null;
+      const rangeStr = max !== null ? `${min}~${max}점` : `${min}점 이상`;
+      const shortName = g.name.length > 30 ? g.name.slice(0, 30) + "…(최상위 등급)" : g.name;
+      return `  ${rangeStr} → ${shortName}`;
+    })
+    .join("\n");
+}
+
+function renderHowtoBody() {
+  const normalCfg = DIFFICULTY_CONFIG.normal;
+  let text = HOWTO_BASE_TEXT;
+
+  text += `\n\n[등급컷 안내 — easy / normal / hard 공통, PC 기준]
 점수가 높을수록 더 높은 등급을 받으며, 등급 사이의 점수 간격은 위로 갈수록 점점 더 벌어집니다 (상위 등급일수록 올라가기 어려워짐).
-일정 점수 이상을 넘기면 굿엔드, 못 넘기면 배드엔드 연출과 함께 결과가 표시됩니다.
-모바일(터치)은 손가락으로 여러 표적을 동시에 스치듯 눌러 점수를 얻기 유리하기 때문에, 같은 등급을 받으려면 PC보다 훨씬 더 높은 점수가 필요합니다.
+${GOOD_END_CUT.normal}점 이상이면 굿엔드, 미만이면 배드엔드 연출과 함께 결과가 표시됩니다.
+모바일(터치)은 손가락으로 여러 표적을 동시에 스치듯 눌러 점수를 얻기 유리하기 때문에, 같은 등급을 받으려면 PC보다 ${MOBILE_BONUS.normal}점 더 높은 점수가 필요합니다.
+
+[등급 점수 구간 — easy / normal / hard]
+${buildGradeRangeText(GRADES_NORMAL)}
 
 [온라인 랭킹]
 게임이 끝나면 자동으로 난이도별 온라인 랭킹에 닉네임과 점수, 수학 문제 풀이 시간이 기록됩니다.
 메인 화면의 '랭킹' 버튼에서 난이도별로 전체 순위를 확인할 수 있습니다.`;
 
-$("howto-body").textContent = HOWTO_TEXT;
-const hintEl = document.createElement("p");
-hintEl.className = "howto-hint";
-hintEl.textContent = "그의 등번호는 두 자릿수가 아니다. 문을 두드리고 싶다면, 문장 부호처럼 그 숫자만큼 반복하라.";
-$("howto-body").appendChild(hintEl);
+  if (state.impossibleUnlocked) {
+    const impCfg = DIFFICULTY_CONFIG.impossible;
+    text += `\n\n[히든 난이도: IMPOSSIBLE — 해금됨]
+이름 그대로, 사람이 실시간으로 반응하기 버거운 속도와 밀도로 표적이 쏟아집니다.
+표적 등장 간격 ${(impCfg.spawnInterval / 1000).toFixed(2)}초, 동시 최대 ${impCfg.maxOnScreen}개, 표적 유지 시간 ${(impCfg.lifeTime / 1000).toFixed(2)}초로 다른 모든 난이도보다 훨씬 빡빡하게 설정되어 있습니다.
+${GOOD_END_CUT.impossible}점 이상이면 굿엔드, 미만이면 배드엔드입니다.
+모바일 페널티는 ${MOBILE_BONUS.impossible}점으로, 다른 난이도(${MOBILE_BONUS.normal}점)보다는 다소 완화되어 있습니다 (이미 난이도 자체가 매우 높기 때문).
 
-$("btn-howto").addEventListener("click", () => $("howto-modal").classList.remove("hidden"));
+[IMPOSSIBLE 등급 점수 구간]
+${buildGradeRangeText(GRADES_IMPOSSIBLE)}`;
+  } else {
+    text += `\n\n(아직 발견하지 못한 무언가가 있는 것 같습니다...)`;
+  }
+
+  $("howto-body").textContent = text;
+  const hintEl = document.createElement("p");
+  hintEl.className = "howto-hint";
+  hintEl.textContent = "그의 등번호는 두 자릿수가 아니다. 문을 두드리고 싶다면, 문장 부호처럼 그 숫자만큼 반복하라.";
+  $("howto-body").appendChild(hintEl);
+}
+
+renderHowtoBody();
+
+$("btn-howto").addEventListener("click", () => {
+  renderHowtoBody(); // 열 때마다 최신 해금 상태를 반영해 다시 그림
+  $("howto-modal").classList.remove("hidden");
+});
 $("btn-howto-close").addEventListener("click", () => $("howto-modal").classList.add("hidden"));
 
 
