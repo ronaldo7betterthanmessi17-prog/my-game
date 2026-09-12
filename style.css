@@ -161,14 +161,10 @@ input:focus { border-color: var(--accent); }
   position: fixed;
   inset: 0;
   overflow: hidden;
+  transition: filter 0.3s ease;
 }
-.game-field.shake { animation: shake 0.4s; }
-@keyframes shake {
-  0%, 100% { transform: translate(0,0); }
-  20% { transform: translate(-8px, 4px); }
-  40% { transform: translate(8px, -4px); }
-  60% { transform: translate(-6px, -2px); }
-  80% { transform: translate(6px, 2px); }
+.game-field.zombie-blur {
+  filter: blur(6px);
 }
 
 .target {
@@ -204,15 +200,49 @@ input:focus { border-color: var(--accent); }
 .target-diamond { background: transparent; }
 .target-silverfish { background: transparent; }
 .target-gold { background: transparent; }
+.target-tnt { background: transparent; }
+.target-zombie { background: transparent; }
+.target-enderman { background: transparent; }
+
+/* 폭발 파티클 (TNT / 크리퍼 공용) */
+.explosion-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* 화면 전체 흰색 플래시 (TNT / 크리퍼 폭발 시) */
+.screen-flash {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 15;
+  transition: opacity 300ms ease;
+}
+.screen-flash.fade { opacity: 0; }
+
+/* 엔더맨 효과 중 보라색 셀로판지 느낌의 화면 오버레이 */
+.enderman-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(138, 43, 226, 0.38);
+  pointer-events: none;
+  z-index: 7;
+  transition: opacity 0.3s ease;
+}
 
 .web-overlay {
   position: fixed;
-  inset: 0;
   background-image: url('images/web.png');
   background-size: cover;
   background-position: center;
-  opacity: 0.75;
-  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0.85;
+  pointer-events: auto; /* 이 영역의 클릭/터치를 실제로 가로막기 위해 auto로 설정 */
+  cursor: not-allowed;
   z-index: 4;
   transition: opacity 0.8s ease;
 }
@@ -266,6 +296,7 @@ input:focus { border-color: var(--accent); }
   overflow-wrap: break-word;
 }
 .result-mathdiff { margin: 0; opacity: 0.85; font-size: 13px; }
+.result-rank { margin: 0; font-size: 15px; font-weight: 700; color: var(--accent); }
 .result-overlay .btn-row { width: 100%; max-width: 340px; margin-top: 10px; }
 
 /* ---------- 오버레이 (일시정지/모달) ---------- */
@@ -323,6 +354,28 @@ input:focus { border-color: var(--accent); }
 .rank-name { font-weight: 600; }
 .rank-score { font-weight: 700; text-align: right; }
 .rank-math { grid-column: 2 / 4; font-size: 11px; color: var(--text-muted); }
+
+.ranking-item.rank-top {
+  border: 1px solid transparent;
+}
+.ranking-item.rank-top-1 {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), #14151d 60%);
+  border-color: rgba(255, 215, 0, 0.5);
+}
+.ranking-item.rank-top-1 .rank-num,
+.ranking-item.rank-top-1 .rank-name { color: #ffd700; }
+.ranking-item.rank-top-2 {
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.16), #14151d 60%);
+  border-color: rgba(192, 192, 192, 0.5);
+}
+.ranking-item.rank-top-2 .rank-num,
+.ranking-item.rank-top-2 .rank-name { color: #d4d4d4; }
+.ranking-item.rank-top-3 {
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.18), #14151d 60%);
+  border-color: rgba(205, 127, 50, 0.5);
+}
+.ranking-item.rank-top-3 .rank-num,
+.ranking-item.rank-top-3 .rank-name { color: #cd7f32; }
 
 .ranking-pager {
   display: flex;
