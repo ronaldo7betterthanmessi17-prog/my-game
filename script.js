@@ -46,22 +46,58 @@ function showScreen(name) {
   screens[name].classList.add("active");
 }
 
-// 난이도별 컬렉션에 점수 저장 (닉네임, 점수, 1차/2차 수학 풀이 시간 포함)
+// Firestore 문서 ID로 쓸 수 있게 닉네임을 정리 ('/' 금지, 길이 제한, 빈 값 방지)
+function sanitizeNicknameForDocId(nickname) {
+  let id = (nickname || "익명").trim().slice(0, 60);
+  id = id.replace(/\//g, "_");
+  if (!id) id = "익명";
+  if (id === "." || id === "..") id = "_" + id;
+  return id;
+}
+
+// 난이도별 컬렉션에 점수 저장. 닉네임을 문서 ID로 사용해 같은 난이도 내에서는
+// 같은 닉네임이 항상 최고 점수 하나만 남도록 함(기록 갱신 시에만 덮어씀).
 async function saveScoreToFirebase(difficulty, nickname, score, firstMathTime, secondMathTime) {
-  if (!db) return; // Firebase 사용 불가 시 조용히 건너뜀 (게임 진행에는 영향 없음)
+  if (!db) return null; // Firebase 사용 불가 시 조용히 건너뜀 (게임 진행에는 영향 없음)
   const safeFirst = Number.isFinite(firstMathTime) ? Number(firstMathTime.toFixed(2)) : 0;
   const safeSecond = Number.isFinite(secondMathTime) ? Number(secondMathTime.toFixed(2)) : 0;
   const safeScore = Number.isFinite(score) ? score : 0;
+  const docId = sanitizeNicknameForDocId(nickname);
+  const docRef = db.collection(`scores_${difficulty}`).doc(docId);
+
   try {
-    await db.collection(`scores_${difficulty}`).add({
-      nickname: nickname || "익명",
-      score: safeScore,
-      firstMathTime: safeFirst,
-      secondMathTime: safeSecond,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    let effectiveScore = safeScore;
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      const prevScore = snap.exists ? snap.data().score : null;
+      if (prevScore !== null && prevScore >= safeScore) {
+        effectiveScore = prevScore; // 기존 기록이 더 높으면 그대로 유지
+        return;
+      }
+      tx.set(docRef, {
+        nickname: nickname || "익명",
+        score: safeScore,
+        firstMathTime: safeFirst,
+        secondMathTime: safeSecond,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
     });
+    return effectiveScore; // 최종적으로 랭킹에 반영된(최고) 점수
   } catch (err) {
     console.error("랭킹 저장 실패:", err);
+    return null;
+  }
+}
+
+// 특정 점수가 난이도별 랭킹에서 몇 등인지 계산 (자신보다 점수가 높은 사람 수 + 1)
+async function getRankForScore(difficulty, score) {
+  if (!db) return null;
+  try {
+    const snap = await db.collection(`scores_${difficulty}`).where("score", ">", score).get();
+    return snap.size + 1;
+  } catch (err) {
+    console.error("순위 계산 실패:", err);
+    return null;
   }
 }
 
@@ -112,6 +148,7 @@ async function loadRankingPage(difficulty, pageIndex) {
 
     let html = `<ol class="ranking-list" start="${pageIndex * rankingState.pageSize + 1}">`;
     let rankCounter = pageIndex * rankingState.pageSize; // 이 페이지 시작 전까지의 순위 개수
+    const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
     snapshot.forEach((doc) => {
       // 주의: Firestore의 snapshot.forEach는 일반 배열 forEach와 달리 인덱스를 넘겨주지 않는다.
       // (doc, i) 형태로 i를 받으면 i는 항상 undefined가 되어 NaN의 원인이 되므로 직접 카운터를 센다.
@@ -120,8 +157,10 @@ async function loadRankingPage(difficulty, pageIndex) {
       const safeScore = safeNumber(d.score);
       const safeFirst = safeNumber(d.firstMathTime);
       const safeSecond = safeNumber(d.secondMathTime);
-      html += `<li class="ranking-item">
-        <span class="rank-num">${rankCounter}</span>
+      const topClass = rankCounter <= 3 ? ` rank-top rank-top-${rankCounter}` : "";
+      const medal = medals[rankCounter] ? `${medals[rankCounter]} ` : "";
+      html += `<li class="ranking-item${topClass}">
+        <span class="rank-num">${medal}${rankCounter}</span>
         <span class="rank-name">${escapeHtml(d.nickname ?? "익명")}</span>
         <span class="rank-score">${safeScore}점</span>
         <span class="rank-math">문제풀이 ${safeFirst}s → ${safeSecond}s</span>
@@ -190,6 +229,11 @@ const state = {
   mathAnswer: 0,
   mathStartTs: 0,
   mathPhase: "first",   // "first" | "second"
+  mathSpeedBonus: 0,    // 1차 수학 문제를 빠르게 풀었을 때 받는 시작 점수 보너스
+  zombieBlurActive: false,  // 좀비 클릭 후 3초간 화면 블러 상태인지
+  zombieViolated: false,    // 블러 상태에서 다른 곳을 클릭했는지(위반)
+  clicksBlocked: false,     // 위반 페널티로 클릭 자체가 무시되는 상태인지
+  endermanActive: false,    // 엔더맨 효과(모든 득점/감점 반전 + 보라색 화면)가 활성 중인지
   isMobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
 };
 
@@ -197,31 +241,35 @@ const state = {
 const DIFFICULTY_CONFIG = {
   easy:       { spawnInterval: 1400, maxOnScreen: 5,  lifeTime: 1500 },
   normal:     { spawnInterval: 1100, maxOnScreen: 8,  lifeTime: 1200 },
-  hard:       { spawnInterval: 950,  maxOnScreen: 11, lifeTime: 1000 },
+  hard:       { spawnInterval: 1000, maxOnScreen: 11, lifeTime: 1060 },
   impossible: { spawnInterval: 550,  maxOnScreen: 20, lifeTime: 500 },
 };
 
 /* ---------- 목표 종류별 점수/확률/스폰가중치 ---------- */
 const TARGET_TYPES = [
-  { key: "mole",       weight: 40, className: "target-mole",       image: "images/mole.png" },
-  { key: "diamond",    weight: 15, className: "target-diamond",    image: "images/diamond.png" },
-  { key: "emerald",    weight: 15, className: "target-emerald",    image: "images/emerald.png" },
-  { key: "creeper",    weight: 15, className: "target-creeper",    image: "images/creeper.png" },
-  { key: "silverfish", weight: 10, className: "target-silverfish", image: "images/silverfish.png" },
-  { key: "gold",       weight: 5,  className: "target-gold",       image: "images/gold.png" },
+  { key: "mole",       weight: 32, className: "target-mole",       image: "images/mole.png" },
+  { key: "diamond",    weight: 12, className: "target-diamond",    image: "images/diamond.png" },
+  { key: "emerald",    weight: 12, className: "target-emerald",    image: "images/emerald.png" },
+  { key: "creeper",    weight: 12, className: "target-creeper",    image: "images/creeper.png" },
+  { key: "silverfish", weight: 8,  className: "target-silverfish", image: "images/silverfish.png" },
+  { key: "gold",       weight: 4,  className: "target-gold",       image: "images/gold.png" },
+  { key: "tnt",        weight: 8,  className: "target-tnt",        image: "images/tnt.png" },
+  { key: "zombie",     weight: 8,  className: "target-zombie",     image: "images/zombie.png" },
+  { key: "enderman",   weight: 4,  className: "target-enderman",   image: "images/enderman.png" },
 ];
 const TOTAL_WEIGHT = TARGET_TYPES.reduce((s, t) => s + t.weight, 0);
+const EMERALD_SUCCESS_RATE = 0.85; // 80% -> 85%로 상향 (TNT/좀비 추가에 따른 밸런스 보정)
 
-/* ---------- 등급 구간 (PC 기준, 모바일은 -45점 페널티 — 높은 등급일수록 간격이 점점 넓어짐) ---------- */
+/* ---------- 등급 구간 (PC 기준, 모바일은 난이도별 페널티 적용 — 높은 등급일수록 간격이 점점 넓어짐) ---------- */
 const GRADES_NORMAL = [
   { name: "벤치급", min: 0 },
-  { name: "날강두급", min: 15 },
-  { name: "런닝머신두급", min: 33 },
-  { name: "중롱도르급", min: 54 },
-  { name: "호날두급", min: 78 },
-  { name: "킹갓두급", min: 105 },
-  { name: "챔스의사나이급", min: 135 },
-  { name: "5발롱5챔스의전설월드컵6회연속출전및연속득점킹갓Cristiano Ronaldo dos Santos Aveiro급", min: 168 },
+  { name: "날강두급", min: 20 },
+  { name: "런닝머신두급", min: 45 },
+  { name: "중롱도르급", min: 75 },
+  { name: "호날두급", min: 115 },
+  { name: "킹갓두급", min: 165 },
+  { name: "챔스의사나이급", min: 225 },
+  { name: "5발롱5챔스의전설월드컵6회연속출전및연속득점킹갓Cristiano Ronaldo dos Santos Aveiro급", min: 300 },
 ];
 const GRADES_IMPOSSIBLE = [
   { name: "강등위기닭집급", min: 0 },
@@ -235,7 +283,7 @@ const GRADES_IMPOSSIBLE = [
 const GRADE_IMAGE_MAP_NORMAL = ["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8"];
 const GRADE_IMAGE_MAP_IMPOSSIBLE = ["i1", "i2", "i3", "i4", "i5", "i6"];
 
-const GOOD_END_CUT = { easy: 78, normal: 78, hard: 78, impossible: 75 };
+const GOOD_END_CUT = { easy: 115, normal: 115, hard: 115, impossible: 75 };
 // 모바일은 손가락으로 여러 표적을 동시에 터치하기 쉬워 점수를 얻기 유리하므로, 같은 등급을 받으려면 PC보다 더 높은 점수가 필요함
 // impossible은 이미 극악한 난이도라 다른 난이도보다는 페널티를 완화함(20~30점대)
 const MOBILE_BONUS = { easy: 45, normal: 45, hard: 45, impossible: 35 };
@@ -271,6 +319,8 @@ const SOUND_FILES = {
   firework: "sounds/firework.mp3",
   goodend: "sounds/goodend.mp3",
   thunder: "sounds/thunder.mp3",
+  zombie: "sounds/zombie.mp3",
+  enderman: "sounds/enderman.mp3",
 };
 const SOUND_VOLUME = {
   bad: 1,
@@ -280,6 +330,8 @@ const SOUND_VOLUME = {
   firework: 1.6, // 1.0 초과 = Web Audio GainNode로 증폭
   goodend: 1,
   thunder: 0.5,
+  zombie: 1,
+  enderman: 1,
 };
 
 // 클릭 순간 파일을 새로 불러오면 디코딩 지연이 생기므로, 미리 디코딩된 AudioBuffer로 캐싱해둔다.
@@ -303,10 +355,10 @@ async function preloadSounds() {
   );
 }
 
-function playSound(key) {
+function playSound(key, volumeOverride) {
   if (state.isMuted) return;
   const buffer = soundBuffers[key];
-  const volume = SOUND_VOLUME[key] ?? 1;
+  const volume = volumeOverride ?? SOUND_VOLUME[key] ?? 1;
 
   if (buffer) {
     // 사전 로드된 버퍼가 있으면 지연 없이 즉시 재생 (GainNode로 볼륨도 함께 조절)
@@ -355,10 +407,13 @@ const HOWTO_BASE_TEXT = `[게임 목표]
 [목표 종류]
 두더지: 클릭 시 +1점 (가장 흔하게 등장)
 다이아몬드 블록: 클릭 시 +3점
-에메랄드 블록: 클릭 시 80% 확률로 +5점, 20% 확률로 -3점 (하이리스크 하이리턴)
-크리퍼: 클릭 시 -3점, 화면이 흔들리는 페널티 연출 발생
-좀벌레: 클릭 시 -2점, 거미줄이 잠깐 화면을 덮어 시야만 방해 (점수에는 영향 없음)
+에메랄드 블록: 클릭 시 85% 확률로 +5점, 15% 확률로 -3점 (하이리스크 하이리턴)
+크리퍼: 클릭 시 -3점, 폭발 파티클과 함께 화면이 강하게 흔들림
+좀벌레: 클릭 시 -2점, 클릭한 위치 근처에만 거미줄이 생겨 그 영역은 시야가 가려지고 클릭도 막힘
 금 블록: 클릭해도 점수 변화는 없지만, 그 다음 클릭에서 얻는 점수(또는 잃는 점수)가 2배로 적용됩니다. 단, 아무 목표나 한 번 클릭하는 순간 효과가 사라지니 타이밍이 중요합니다. 허공을 클릭해도 효과는 유지됩니다.
+TNT: 클릭 시 -5점, 강렬한 폭발 이펙트와 함께 화면이 매우 크게 흔들리며, 근처에 있던 크리퍼가 연쇄적으로 함께 터집니다
+좀비: 클릭 시 -2점과 함께 3초간 화면이 흐려집니다. 이 3초 동안 다른 곳을 클릭하면 위반으로 간주되어, 효과가 끝난 뒤 추가로 3초간 클릭 자체가 인식되지 않습니다
+엔더맨: 클릭하면 점수 변화는 없지만, 이후 일정 시간 동안 모든 표적의 득점/감점이 완전히 반전되고 화면이 보라색으로 물듭니다 (허공 클릭의 -1점은 반전되지 않음)
 허공 클릭(빗나감): -1점
 
 [진행 순서]
@@ -469,6 +524,14 @@ $("btn-back-main").addEventListener("click", () => showScreen("main"));
 /* =========================================================
    3. 수학 문제 (1차 / 2차 공용)
 ========================================================= */
+// 1차 수학 문제를 빠르게 풀수록 본게임 시작 점수에 유의미한 보너스를 부여
+function calcMathSpeedBonus(elapsedSec) {
+  if (elapsedSec <= 1.5) return 15;
+  if (elapsedSec <= 3) return 8;
+  if (elapsedSec <= 5) return 3;
+  return 0;
+}
+
 function genMathQuestion() {
   const a = Math.floor(Math.random() * 90) + 10; // 10~99
   const b = Math.floor(Math.random() * 90) + 10;
@@ -512,13 +575,20 @@ function submitMath() {
 
   if (isCorrect) {
     const elapsedSec = (performance.now() - state.mathStartTs) / 1000 + state.mathWrongPenalty;
-    $("math-feedback").textContent = `정답! (${elapsedSec.toFixed(2)}초)`;
-    $("math-feedback").className = "feedback";
 
     if (state.mathPhase === "first") {
+      const bonus = calcMathSpeedBonus(elapsedSec);
+      state.mathSpeedBonus = bonus;
+      $("math-feedback").textContent =
+        bonus > 0
+          ? `정답! (${elapsedSec.toFixed(2)}초) — 빠른 풀이 보너스 +${bonus}점!`
+          : `정답! (${elapsedSec.toFixed(2)}초)`;
+      $("math-feedback").className = "feedback";
       state.firstMathTime = elapsedSec;
-      setTimeout(() => startCountdown(), 700);
+      setTimeout(() => startCountdown(), 900);
     } else {
+      $("math-feedback").textContent = `정답! (${elapsedSec.toFixed(2)}초)`;
+      $("math-feedback").className = "feedback";
       state.secondMathTime = elapsedSec;
       setTimeout(() => showResult(), 700);
     }
@@ -574,11 +644,20 @@ let activeTargets = [];
 function startGame() {
   clearInterval(state.timerId);
   clearInterval(state.spawnTimerId);
-  state.score = 0;
+  clearTimeout(zombieBlurTimeout);
+  clearTimeout(zombieBlockClicksTimeout);
+  clearTimeout(endermanTimeout);
+  state.score = state.mathSpeedBonus || 0; // 1차 수학 문제를 빠르게 풀었다면 그 보너스로 시작
   state.timeLeft = 60;
   state.goldActive = false;
   state.isPaused = false;
   state.isGameOver = false;
+  state.zombieBlurActive = false;
+  state.zombieViolated = false;
+  state.clicksBlocked = false;
+  state.endermanActive = false;
+  $("game-field").classList.remove("zombie-blur");
+  $("enderman-overlay").classList.add("hidden");
   activeTargets = [];
   $("game-field").innerHTML = "";
   updateHUD();
@@ -681,8 +760,14 @@ function removeTarget(el) {
 }
 
 function handleTargetClick(typeKey, el, clientX, clientY) {
+  if (state.clicksBlocked) return; // 좀비 위반 페널티로 클릭 자체가 무시되는 상태
+
+  // 좀비 블러가 떠 있는 도중에 아무 곳이나 클릭하면 위반으로 기록 (효과 자체는 아래에서 정상 처리됨)
+  if (state.zombieBlurActive) state.zombieViolated = true;
+
   let delta = 0;
   let isGoldTriggerConsuming = typeKey !== "gold";
+  const center = getTargetCenter(el);
 
   switch (typeKey) {
     case "mole":
@@ -693,7 +778,7 @@ function handleTargetClick(typeKey, el, clientX, clientY) {
       playSound("diamond");
       break;
     case "emerald":
-      if (Math.random() < 0.8) {
+      if (Math.random() < EMERALD_SUCCESS_RATE) {
         delta = 5;
         playSound("firework");
       } else {
@@ -704,17 +789,41 @@ function handleTargetClick(typeKey, el, clientX, clientY) {
     case "creeper":
       delta = -3;
       playSound("explosion");
-      shakeScreen();
+      spawnExplosionParticles(center.x, center.y, CREEPER_PARTICLE_COLORS, 48);
+      showScreenFlash();
+      shakeLinear(26, 14);
       break;
     case "silverfish":
       delta = -2;
       playSound("bad");
-      showWebOverlay();
+      showWebOverlay(clientX, clientY);
       break;
     case "gold":
       activateGold();
       removeTarget(el);
       return; // 점수 변동 없음, 골드 효과만 활성화
+    case "tnt":
+      delta = -5;
+      playSound("explosion", 1.9); // 크리퍼 폭발음 재사용, 볼륨만 훨씬 크게
+      spawnExplosionParticles(center.x, center.y, TNT_PARTICLE_COLORS, 48);
+      showScreenFlash();
+      shakeExplosive(48, 650); // 초반에 강하게 터졌다가 빠르게 감쇠 (보스몹 느낌)
+      triggerNearbyCreeperChain(center.x, center.y, 150);
+      break;
+    case "zombie":
+      delta = -2;
+      playSound("zombie");
+      startZombieBlur();
+      break;
+    case "enderman":
+      playSound("enderman");
+      activateEndermanReversal();
+      removeTarget(el);
+      return; // 점수 변동 없음, 반전 효과만 활성화
+  }
+
+  if (state.endermanActive) {
+    delta = -delta; // 엔더맨 효과 중에는 모든 득점/감점이 반전됨 (허공 클릭은 별도 경로라 영향 없음)
   }
 
   if (state.goldActive && isGoldTriggerConsuming) {
@@ -724,6 +833,14 @@ function handleTargetClick(typeKey, el, clientX, clientY) {
 
   applyScore(delta, clientX, clientY);
   removeTarget(el);
+}
+
+function getTargetCenter(el) {
+  const size = 64; // 표적 스폰 시 사용한 기준 크기
+  return {
+    x: parseFloat(el.style.left) + size / 2,
+    y: parseFloat(el.style.top) + size / 2,
+  };
 }
 
 function activateGold() {
@@ -751,34 +868,176 @@ function showScorePopup(delta, x, y) {
   setTimeout(() => popup.remove(), 800);
 }
 
-function shakeScreen() {
+/* ---------- 폭발 이펙트 (TNT / 크리퍼 공용, 색상만 다름) ---------- */
+const TNT_PARTICLE_COLORS = ["#e8452c", "#ff7a1a", "#ffcc33", "#fff2c4", "#8a1f12"];
+const CREEPER_PARTICLE_COLORS = ["#3b8f3b", "#5fbf5f", "#1f5f1f", "#a8e6a1", "#0f2f0f"];
+
+function spawnExplosionParticles(x, y, colors, count) {
   const field = $("game-field");
-  field.classList.remove("shake");
-  void field.offsetWidth;
-  field.classList.add("shake");
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement("div");
+    const size = 3 + Math.random() * 7;
+    p.className = "explosion-particle";
+    p.style.left = `${x}px`;
+    p.style.top = `${y}px`;
+    p.style.width = `${size}px`;
+    p.style.height = `${size}px`;
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    field.appendChild(p);
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 50 + Math.random() * 90;
+    const tx = Math.cos(angle) * dist;
+    const ty = Math.sin(angle) * dist;
+
+    p.animate(
+      [
+        { transform: "translate(0,0) scale(1)", opacity: 1 },
+        { transform: `translate(${tx}px, ${ty}px) scale(0.2)`, opacity: 0 },
+      ],
+      { duration: 500 + Math.random() * 300, easing: "cubic-bezier(0.2,0.8,0.3,1)" }
+    ).onfinish = () => p.remove();
+  }
 }
 
-function showWebOverlay() {
+function showScreenFlash() {
+  const flash = document.createElement("div");
+  flash.className = "screen-flash";
+  document.body.appendChild(flash);
+  requestAnimationFrame(() => flash.classList.add("fade"));
+  setTimeout(() => flash.remove(), 400);
+}
+
+// 크리퍼: 일정한 속도로 감쇠하는 흔들림
+function shakeLinear(amplitude, frameCount) {
+  const field = $("game-field");
+  let frame = 0;
+  const interval = setInterval(() => {
+    frame++;
+    const decay = 1 - frame / frameCount;
+    const dx = (Math.random() - 0.5) * amplitude * decay;
+    const dy = (Math.random() - 0.5) * amplitude * decay;
+    field.style.transform = `translate(${dx}px, ${dy}px)`;
+    if (frame >= frameCount) {
+      clearInterval(interval);
+      field.style.transform = "translate(0,0)";
+    }
+  }, 30);
+}
+
+// TNT: 초반에 강하게 터졌다가 지수적으로 빠르게 감쇠하는 흔들림 (보스몹 느낌)
+function shakeExplosive(maxAmplitude, totalMs) {
+  const field = $("game-field");
+  const start = performance.now();
+  const tau = totalMs / 4.5;
+  function tick(now) {
+    const elapsed = now - start;
+    if (elapsed >= totalMs) {
+      field.style.transform = "translate(0,0)";
+      return;
+    }
+    const amp = maxAmplitude * Math.exp(-elapsed / tau);
+    const dx = (Math.random() - 0.5) * amp;
+    const dy = (Math.random() - 0.5) * amp;
+    field.style.transform = `translate(${dx}px, ${dy}px)`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// TNT 근처에 있는 크리퍼를 강제로 클릭된 것처럼 처리해 연쇄 폭발을 일으킴
+function triggerNearbyCreeperChain(cx, cy, radius) {
+  const nearbyCreepers = activeTargets.filter((t) => {
+    if (t.dataset.type !== "creeper") return false;
+    const center = getTargetCenter(t);
+    const dx = center.x - cx;
+    const dy = center.y - cy;
+    return Math.sqrt(dx * dx + dy * dy) <= radius;
+  });
+  nearbyCreepers.forEach((el) => {
+    setTimeout(() => {
+      if (!el.parentNode) return; // 그 사이 이미 사라졌으면 무시
+      const center = getTargetCenter(el);
+      handleTargetClick("creeper", el, center.x, center.y);
+    }, 80 + Math.random() * 140);
+  });
+}
+
+/* ---------- 좀비: 클릭 시 화면 블러 + 위반 시 클릭 차단 페널티 ---------- */
+let zombieBlurTimeout = null;
+let zombieBlockClicksTimeout = null;
+
+function startZombieBlur() {
+  state.zombieBlurActive = true;
+  state.zombieViolated = false;
+  $("game-field").classList.add("zombie-blur");
+
+  clearTimeout(zombieBlurTimeout);
+  zombieBlurTimeout = setTimeout(() => {
+    state.zombieBlurActive = false;
+    $("game-field").classList.remove("zombie-blur");
+
+    if (state.zombieViolated) {
+      state.clicksBlocked = true;
+      clearTimeout(zombieBlockClicksTimeout);
+      zombieBlockClicksTimeout = setTimeout(() => {
+        state.clicksBlocked = false;
+      }, 3000);
+    }
+  }, 3000);
+}
+
+/* ---------- 엔더맨: 모든 득점/감점 반전 + 화면 보라색 연출 ---------- */
+let endermanTimeout = null;
+const ENDERMAN_DURATION = 5000;
+
+function activateEndermanReversal() {
+  state.endermanActive = true;
+  $("enderman-overlay").classList.remove("hidden");
+
+  clearTimeout(endermanTimeout);
+  endermanTimeout = setTimeout(() => {
+    state.endermanActive = false;
+    $("enderman-overlay").classList.add("hidden");
+  }, ENDERMAN_DURATION);
+}
+
+function showWebOverlay(x, y) {
   const web = document.createElement("div");
   web.className = "web-overlay";
+  const size = 220; // 거미줄이 덮는 영역 지름(px)
+  web.style.left = `${x - size / 2}px`;
+  web.style.top = `${y - size / 2}px`;
+  web.style.width = `${size}px`;
+  web.style.height = `${size}px`;
+
+  // 거미줄이 덮인 영역은 그 아래 표적을 클릭/터치할 수 없도록 이벤트를 가로채서 막음
+  const block = (e) => { e.stopPropagation(); e.preventDefault(); };
+  web.addEventListener("click", block);
+  web.addEventListener("touchstart", block, { passive: false });
+
   document.body.appendChild(web);
-  // 일정 시간 유지 후 서서히 사라짐 (fade-out)
+  // 일정 시간 유지 후 서서히 사라짐 (fade-out), 사라지는 동안에도 클릭은 계속 막힘
   setTimeout(() => {
     web.classList.add("fade-out");
     setTimeout(() => web.remove(), 800);
   }, 900);
 }
 
-/* ---------- 허공 클릭 (빗나감) ---------- */
+/* ---------- 허공 클릭 (빗나감) — 엔더맨 반전 효과의 영향을 받지 않고 항상 -1점 ---------- */
 $("game-field").addEventListener("click", (e) => {
   if (state.isPaused) return;
+  if (state.clicksBlocked) return;
+  if (state.zombieBlurActive) state.zombieViolated = true;
   applyScore(-1, e.clientX, e.clientY);
 });
 $("game-field").addEventListener(
   "touchstart",
   (e) => {
     if (state.isPaused) return;
+    if (state.clicksBlocked) return;
     if (e.target.id === "game-field") {
+      if (state.zombieBlurActive) state.zombieViolated = true;
       const touch = e.touches[0];
       applyScore(-1, touch.clientX, touch.clientY);
     }
@@ -871,6 +1130,8 @@ function showResult() {
   $("result-score").textContent = `최종 점수 ${state.score}`;
   $("result-grade").textContent = grade.name;
   $("result-mathdiff").textContent = diffText;
+  $("result-rank").classList.add("hidden");
+  $("result-rank").textContent = "";
 
   const bg = $("result-bg");
   bg.style.backgroundImage = `url('${grade.image}')`;
@@ -879,8 +1140,20 @@ function showResult() {
   playSound(grade.isGoodEnd ? "goodend" : "badend");
   showScreen("result");
 
-  // 온라인 랭킹에 기록 저장 (난이도별 컬렉션)
-  saveScoreToFirebase(state.difficulty, state.nickname, state.score, state.firstMathTime, state.secondMathTime);
+  // 온라인 랭킹에 기록 저장 후, 저장이 반영된 점수 기준으로 실시간 순위를 계산해 바로 보여줌
+  saveScoreToFirebase(state.difficulty, state.nickname, state.score, state.firstMathTime, state.secondMathTime).then(
+    async (effectiveScore) => {
+      if (effectiveScore === null) return; // Firebase 사용 불가 등으로 저장 실패 시 조용히 넘어감
+      const rank = await getRankForScore(state.difficulty, effectiveScore);
+      if (rank === null) return;
+      const rankEl = $("result-rank");
+      rankEl.textContent =
+        effectiveScore === state.score
+          ? `현재 순위 ${rank}위`
+          : `현재 순위 ${rank}위 (기존 최고 기록 ${effectiveScore}점 유지)`;
+      rankEl.classList.remove("hidden");
+    }
+  );
 }
 
 $("btn-retry").addEventListener("click", () => {
