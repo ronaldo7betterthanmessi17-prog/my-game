@@ -47,8 +47,10 @@ function showScreen(name) {
 }
 
 // Firestore 문서 ID로 쓸 수 있게 닉네임을 정리 ('/' 금지, 길이 제한, 빈 값 방지)
+// 중복 판정은 대소문자/공백 차이를 무시해야 하므로, ID를 만들 때는 소문자로 통일하고
+// 내부의 연속 공백도 하나로 합침 (실제 화면에 보여줄 닉네임 표기는 원본 그대로 별도 저장됨)
 function sanitizeNicknameForDocId(nickname) {
-  let id = (nickname || "익명").trim().slice(0, 60);
+  let id = (nickname || "익명").trim().replace(/\s+/g, " ").toLowerCase().slice(0, 60);
   id = id.replace(/\//g, "_");
   if (!id) id = "익명";
   if (id === "." || id === "..") id = "_" + id;
@@ -533,10 +535,15 @@ function calcMathSpeedBonus(elapsedSec) {
 }
 
 function genMathQuestion() {
-  const a = Math.floor(Math.random() * 90) + 10; // 10~99
-  const b = Math.floor(Math.random() * 90) + 10;
+  let a = Math.floor(Math.random() * 90) + 10; // 10~99
+  let b = Math.floor(Math.random() * 90) + 10;
   const ops = ["+", "-"];
   const op = ops[Math.floor(Math.random() * ops.length)];
+  // 뺄셈일 때 답이 음수가 되면 모바일 숫자 키패드에 마이너스(-) 키가 없어 입력 자체가 불가능해지므로,
+  // 항상 큰 수에서 작은 수를 빼서 답이 0 이상이 되도록 함
+  if (op === "-" && a < b) {
+    [a, b] = [b, a];
+  }
   const answer = op === "+" ? a + b : a - b;
   return { text: `${a} ${op} ${b}`, answer };
 }
