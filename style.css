@@ -58,6 +58,11 @@ html, body {
   margin: 0 0 6px;
   cursor: pointer;
   user-select: none;
+  transition: color 0.4s ease, text-shadow 0.4s ease;
+}
+.logo.logo-hell {
+  color: #ff2b2b;
+  text-shadow: 0 0 12px rgba(255, 43, 43, 0.7), 0 0 28px rgba(255, 43, 43, 0.4);
 }
 
 input[type="text"], input[type="number"] {
@@ -204,12 +209,12 @@ input:focus { border-color: var(--accent); }
 .target-zombie { background: transparent; }
 .target-enderman { background: transparent; }
 
-/* 폭발 파티클 (TNT / 크리퍼 공용) */
+/* 폭발 파티클 (TNT / 크리퍼 / 히든 해금 공용) */
 .explosion-particle {
-  position: absolute;
+  position: fixed;
   border-radius: 50%;
   pointer-events: none;
-  z-index: 6;
+  z-index: 16;
 }
 
 /* 화면 전체 흰색 플래시 (TNT / 크리퍼 폭발 시) */
